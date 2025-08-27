@@ -44,11 +44,10 @@ export default function Header({text_color}:HeaderProps){
       className="flex flex-row gap-7"
     >
       {
-        NAV_ITEMS.map(item => <a 
+        NAV_ITEMS.map(item => <p 
           key={item.ref} 
-          href={item.ref} 
-          className={`text-xl capitalize font-medium underline-offset-8 hover:underline duration-200 ${text_color === "green" ? "hover:text-green-500" : "hover:text-white"}`}
-        >{item.label}</a>)
+          className={`text-xl cursor-pointer capitalize font-medium underline-offset-8 hover:underline duration-200 ${text_color === "green" ? "hover:text-green-500" : "hover:text-white"}`}
+        >{item.label}</p>)
       }
     </nav>
   </header>

@@ -31,7 +31,11 @@ const NAV_ITEMS : {
   },
 ]
 
-export default function Header(){
+interface HeaderProps {
+  text_color?: "white" | "green"
+}
+
+export default function Header({text_color}:HeaderProps){
   return <header
     className="flex flex-row justify-between items-center px-8 py-2"
   >
@@ -40,7 +44,11 @@ export default function Header(){
       className="flex flex-row gap-7"
     >
       {
-        NAV_ITEMS.map(item => <a key={item.ref} href={item.ref} className="text-xl capitalize font-medium underline-offset-8 hover:text-white hover:underline duration-200">{item.label}</a>)
+        NAV_ITEMS.map(item => <a 
+          key={item.ref} 
+          href={item.ref} 
+          className={`text-xl capitalize font-medium underline-offset-8 hover:underline duration-200 ${text_color === "green" ? "hover:text-green-500" : "hover:text-white"}`}
+        >{item.label}</a>)
       }
     </nav>
   </header>

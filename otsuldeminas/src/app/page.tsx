@@ -1,4 +1,3 @@
-import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 
 export default function Home() {
@@ -20,6 +19,5 @@ export default function Home() {
         <p>indicadores, entre outras ações que visam o desenvolvimento sustentável do setor. O Observatório também conta com o Programa de Capacitação Regional, voltado para a qualificação dos profissionais do turismo, e a criação de um Selo de Qualidade, que reconhecerá as melhores práticas no setor.</p>
       </div>
     </section>
-    <Footer />
   </>
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
 import "@/styles/globals.css";
+import Footer from "@/components/Footer";
 
 const gabarito = Gabarito({
   variable: "--font-gabarito",
@@ -18,6 +19,7 @@ export default function RootLayout({children}: LayoutProps) {
     <html lang="pt-br">
       <body className={`${gabarito.variable} antialiased`}>
         {children}
+        <Footer />
       </body>
     </html>
   );

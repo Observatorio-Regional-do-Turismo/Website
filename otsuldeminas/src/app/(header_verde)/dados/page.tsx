@@ -1,6 +1,8 @@
 
-export default function Home() {
+export default function Dados() {
   return <>
-    opa
+    <h1
+      className="font-semibold text-7xl"
+    >Dados do Turismo</h1>
   </>
 }

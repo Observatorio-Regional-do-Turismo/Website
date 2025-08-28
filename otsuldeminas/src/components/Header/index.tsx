@@ -1,3 +1,4 @@
+import Link from "next/link"
 import NavItem from "./NavItem"
 import { NAV_ITEMS } from "./NavItems"
 
@@ -7,12 +8,14 @@ interface HeaderProps {
 
 export default function Header({color}:HeaderProps){
 
-  if(!color) color = 'white'
+  if(!color) color = 'background'
 
   return <header
     className="flex flex-row justify-between items-center px-8 py-2"
   >
-    <img src="/assets/logo_ort_horizontal.png" />
+    <Link href={"/"}>
+      <img src="/assets/logo_ort_horizontal.png" />
+    </Link>
     <nav
       className="flex flex-row gap-7"
     >

@@ -2,18 +2,23 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --background2: #F4F4F4;
+  --foreground: #312A2A;
+  --highlight: #25D318;
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #312A2A;
+    --foreground: #ffffff;
+    --highlight: #25D318;
   }
-}
+} */
 
 @theme inline {
   --color-background: var(--background);
+  --color-background2: var(--background2);
   --color-foreground: var(--foreground);
+  --color-highlight: var(--highlight);
   --font-sans: var(--font-gabarito);
 }

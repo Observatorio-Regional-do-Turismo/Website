@@ -9,15 +9,15 @@ interface NavItemProps {
   color: HeaderColorOptions
 }
 
-export default async function NavItem(item:NavItemProps){
+export default function NavItem(item:NavItemProps){
   const pathname = usePathname()
 
-  const hover_color = item.color === "green" ? "hover:text-[#25D318]" : "hover:text-white"
+  const hover_color = item.color === "highlight" ? "hover:text-highlight" : "hover:text-background"
 
   let underline = "hover:underline"
-  let text_color = 'text-black'
+  let text_color = 'text-foreground'
   if(item.path === pathname){ 
-    text_color = item.color === "green"? "text-[#25D318]" : "text-white"
+    text_color = item.color === "highlight"? "text-highlight" : "text-background"
     underline = "underline"
   };
 

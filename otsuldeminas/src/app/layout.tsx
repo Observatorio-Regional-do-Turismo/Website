@@ -16,11 +16,11 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: LayoutProps) {
 
   return (
-    <html lang="pt-br">
+    <html lang="pt-br" className="min-h-screen">
       <Head>
         <link rel="icon" href="/assets/favicon.ico" sizes="any" />
       </Head>
-      <body className={`${gabarito.variable} antialiased text-foreground`}>
+      <body className={`${gabarito.variable} antialiased text-foreground min-h-screen flex flex-col`}>
         {children}
         <Footer />
       </body>

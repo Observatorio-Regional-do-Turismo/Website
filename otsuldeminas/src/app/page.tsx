@@ -1,13 +1,13 @@
 import Header from "@/components/Header";
 
 export default function Home() {
-  return <>
+  return <main>
     <section className="
       bg-[url('assets/home_background.png')] min-h-screen bg-cover bg-center
       flex flex-col justify-between
     ">
       <Header />
-      <div className="flex justify-center items-center">
+      <div className="flex justify-center items-center mb-48">
         <img src="assets/logo_ort_horizontal_grande.png" className="h-48" />
       </div>
       <div className="
@@ -19,5 +19,8 @@ export default function Home() {
         <p>indicadores, entre outras ações que visam o desenvolvimento sustentável do setor. O Observatório também conta com o Programa de Capacitação Regional, voltado para a qualificação dos profissionais do turismo, e a criação de um Selo de Qualidade, que reconhecerá as melhores práticas no setor.</p>
       </div>
     </section>
-  </>
+    <section className="bg-background h-64">
+
+    </section>
+  </main>
 }

@@ -16,7 +16,7 @@ export const NAV_ITEMS = [
     path: '/cursos'
   },
   {
-    label: 'selo',
-    path: '/selo'
+    label: 'selos',
+    path: '/selos'
   }
 ]

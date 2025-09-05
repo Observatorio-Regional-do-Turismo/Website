@@ -1,0 +1,732 @@
+[
+  {
+    "municipio": "Aiuruoca",
+    "funcionarios": 140,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alagoa",
+    "funcionarios": 27,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Albertina",
+    "funcionarios": 65,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alfenas",
+    "funcionarios": 3325,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alpinópolis",
+    "funcionarios": 471,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alterosa",
+    "funcionarios": 53,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Andradas",
+    "funcionarios": 1122,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Andrelândia",
+    "funcionarios": 145,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Arantina",
+    "funcionarios": 34,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Arceburgo",
+    "funcionarios": 308,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Areado",
+    "funcionarios": 394,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Baependi",
+    "funcionarios": 407,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bandeira do Sul",
+    "funcionarios": 41,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Boa Esperança",
+    "funcionarios": 1266,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bocaina de Minas",
+    "funcionarios": 125,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Jardim de Minas",
+    "funcionarios": 161,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Jesus da Penha",
+    "funcionarios": 98,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Repouso",
+    "funcionarios": 66,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Borda da Mata",
+    "funcionarios": 169,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Botelhos",
+    "funcionarios": 317,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Brazópolis",
+    "funcionarios": 112,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bueno Brandão",
+    "funcionarios": 145,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cabo Verde",
+    "funcionarios": 510,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cachoeira de Minas",
+    "funcionarios": 60,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Caldas",
+    "funcionarios": 190,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Camanducaia",
+    "funcionarios": 2097,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cambuí",
+    "funcionarios": 923,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cambuquira",
+    "funcionarios": 252,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campanha",
+    "funcionarios": 519,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campestre",
+    "funcionarios": 548,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campo do Meio",
+    "funcionarios": 115,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campos Gerais",
+    "funcionarios": 468,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Capetinga",
+    "funcionarios": 426,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Capitólio",
+    "funcionarios": 840,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Careaçu",
+    "funcionarios": 163,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo da Cachoeira",
+    "funcionarios": 506,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo de Minas",
+    "funcionarios": 514,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo do Rio Claro",
+    "funcionarios": 604,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carvalhópolis",
+    "funcionarios": 6,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carvalhos",
+    "funcionarios": 22,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cássia",
+    "funcionarios": 517,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Caxambu",
+    "funcionarios": 763,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Claraval",
+    "funcionarios": -80,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição da Aparecida",
+    "funcionarios": 446,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição das Pedras",
+    "funcionarios": 18,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição do Rio Verde",
+    "funcionarios": 318,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição dos Ouros",
+    "funcionarios": 140,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Congonhal",
+    "funcionarios": 224,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Consolação",
+    "funcionarios": -21,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Coqueiral",
+    "funcionarios": 232,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cordislândia",
+    "funcionarios": 25,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Córrego do Bom Jesus",
+    "funcionarios": 78,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cristina",
+    "funcionarios": 252,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cruzília",
+    "funcionarios": 229,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Delfim Moreira",
+    "funcionarios": 23,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Delfinópolis",
+    "funcionarios": 317,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Divisa Nova",
+    "funcionarios": 96,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Dom Viçoso",
+    "funcionarios": -5,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Elói Mendes",
+    "funcionarios": 488,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Espírito Santo do Dourado",
+    "funcionarios": 59,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Estiva",
+    "funcionarios": 467,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Extrema",
+    "funcionarios": 9659,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Fama",
+    "funcionarios": 55,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Fortaleza de Minas",
+    "funcionarios": 53,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Gonçalves",
+    "funcionarios": 94,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guapé",
+    "funcionarios": 254,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guaranésia",
+    "funcionarios": 585,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guaxupé",
+    "funcionarios": 1492,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Heliodora",
+    "funcionarios": 97,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ibiraci",
+    "funcionarios": 359,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ibitiúra de Minas",
+    "funcionarios": 14,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ilicínea",
+    "funcionarios": 226,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Inconfidentes",
+    "funcionarios": 44,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ipuiúna",
+    "funcionarios": 186,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itajubá",
+    "funcionarios": 2550,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itamogi",
+    "funcionarios": 358,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itamonte",
+    "funcionarios": 477,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itanhandu",
+    "funcionarios": 291,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itapeva",
+    "funcionarios": 1305,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itaú de Minas",
+    "funcionarios": 463,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jacuí",
+    "funcionarios": 54,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jacutinga",
+    "funcionarios": 983,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jesuânia",
+    "funcionarios": 41,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Juruaia",
+    "funcionarios": 394,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Lambari",
+    "funcionarios": 584,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Liberdade",
+    "funcionarios": 6,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Machado",
+    "funcionarios": 1911,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Maria da Fé",
+    "funcionarios": 232,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Marmelópolis",
+    "funcionarios": -4,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Minduri",
+    "funcionarios": 75,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monsenhor Paulo",
+    "funcionarios": 337,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Belo",
+    "funcionarios": 614,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Santo de Minas",
+    "funcionarios": 517,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Sião",
+    "funcionarios": 261,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Munhoz",
+    "funcionarios": 90,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Muzambinho",
+    "funcionarios": 649,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Natércia",
+    "funcionarios": 69,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Nova Resende",
+    "funcionarios": 325,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Olímpio Noronha",
+    "funcionarios": 14,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ouro Fino",
+    "funcionarios": 712,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Paraguaçu",
+    "funcionarios": 475,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Paraisópolis",
+    "funcionarios": 1675,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passa Quatro",
+    "funcionarios": 555,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passa Vinte",
+    "funcionarios": 40,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passos",
+    "funcionarios": 4252,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pedralva",
+    "funcionarios": -31,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Piranguçu",
+    "funcionarios": 58,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Piranguinho",
+    "funcionarios": 248,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Poço Fundo",
+    "funcionarios": 404,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Poços de Caldas",
+    "funcionarios": 8328,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pouso Alegre",
+    "funcionarios": 12038,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pouso Alto",
+    "funcionarios": 333,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pratápolis",
+    "funcionarios": -12,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santa Rita de Caldas",
+    "funcionarios": 326,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santa Rita do Sapucaí",
+    "funcionarios": 815,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santana da Vargem",
+    "funcionarios": 743,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Bento Abade",
+    "funcionarios": 60,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Gonçalo do Sapucaí",
+    "funcionarios": 1112,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São João Batista do Glória",
+    "funcionarios": 300,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São João da Mata",
+    "funcionarios": 35,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São José da Barra",
+    "funcionarios": 126,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São José do Alegre",
+    "funcionarios": 16,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Lourenço",
+    "funcionarios": 2191,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Pedro da União",
+    "funcionarios": 208,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião da Bela Vista",
+    "funcionarios": 529,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião do Paraíso",
+    "funcionarios": 2393,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião do Rio Verde",
+    "funcionarios": 30,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Tomás de Aquino",
+    "funcionarios": 177,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Tomé das Letras",
+    "funcionarios": 263,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Vicente de Minas",
+    "funcionarios": 170,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Sapucaí-Mirim",
+    "funcionarios": 522,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Senador Amaral",
+    "funcionarios": 45,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Senador José Bento",
+    "funcionarios": 9,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Seritinga",
+    "funcionarios": 24,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Serrania",
+    "funcionarios": 192,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Serranos",
+    "funcionarios": 171,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Silvianópolis",
+    "funcionarios": 100,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Soledade de Minas",
+    "funcionarios": 141,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Tocos do Moji",
+    "funcionarios": 13,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Toledo",
+    "funcionarios": 75,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Três Corações",
+    "funcionarios": 2191,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Três Pontas",
+    "funcionarios": 2340,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Turvolândia",
+    "funcionarios": 87,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Varginha",
+    "funcionarios": 7938,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Virgínia",
+    "funcionarios": 683,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Wenceslau Braz",
+    "funcionarios": 22,
+    "data": "2025-07-31"
+  }
+]

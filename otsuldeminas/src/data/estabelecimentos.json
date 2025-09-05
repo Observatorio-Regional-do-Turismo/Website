@@ -1,0 +1,732 @@
+[
+  {
+    "municipio": "Aiuruoca",
+    "estabelecimentos": 227,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alagoa",
+    "estabelecimentos": 52,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Albertina",
+    "estabelecimentos": 32,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alfenas",
+    "estabelecimentos": 1935,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alpinópolis",
+    "estabelecimentos": 380,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Alterosa",
+    "estabelecimentos": 130,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Andradas",
+    "estabelecimentos": 688,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Andrelândia",
+    "estabelecimentos": 246,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Arantina",
+    "estabelecimentos": 49,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Arceburgo",
+    "estabelecimentos": 148,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Areado",
+    "estabelecimentos": 236,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Baependi",
+    "estabelecimentos": 510,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bandeira do Sul",
+    "estabelecimentos": 122,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Boa Esperança",
+    "estabelecimentos": 794,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bocaina de Minas",
+    "estabelecimentos": 243,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Jardim de Minas",
+    "estabelecimentos": 168,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Jesus da Penha",
+    "estabelecimentos": 61,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bom Repouso",
+    "estabelecimentos": 138,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Borda da Mata",
+    "estabelecimentos": 316,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Botelhos",
+    "estabelecimentos": 259,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Brazópolis",
+    "estabelecimentos": 240,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Bueno Brandão",
+    "estabelecimentos": 217,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cabo Verde",
+    "estabelecimentos": 136,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cachoeira de Minas",
+    "estabelecimentos": 217,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Caldas",
+    "estabelecimentos": 289,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Camanducaia",
+    "estabelecimentos": 1065,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cambuí",
+    "estabelecimentos": 740,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cambuquira",
+    "estabelecimentos": 287,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campanha",
+    "estabelecimentos": 313,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campestre",
+    "estabelecimentos": 275,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campo do Meio",
+    "estabelecimentos": 474,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Campos Gerais",
+    "estabelecimentos": 365,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Capetinga",
+    "estabelecimentos": 86,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Capitólio",
+    "estabelecimentos": 522,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Careaçu",
+    "estabelecimentos": 105,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo da Cachoeira",
+    "estabelecimentos": 199,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo de Minas",
+    "estabelecimentos": 220,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carmo do Rio Claro",
+    "estabelecimentos": 365,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carvalhópolis",
+    "estabelecimentos": 50,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Carvalhos",
+    "estabelecimentos": 63,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cássia",
+    "estabelecimentos": 355,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Caxambu",
+    "estabelecimentos": 587,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Claraval",
+    "estabelecimentos": 56,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição da Aparecida",
+    "estabelecimentos": 94,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição das Pedras",
+    "estabelecimentos": 27,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição do Rio Verde",
+    "estabelecimentos": 244,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Conceição dos Ouros",
+    "estabelecimentos": 197,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Congonhal",
+    "estabelecimentos": 255,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Consolação",
+    "estabelecimentos": 25,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Coqueiral",
+    "estabelecimentos": 101,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cordislândia",
+    "estabelecimentos": 41,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Córrego do Bom Jesus",
+    "estabelecimentos": 105,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cristina",
+    "estabelecimentos": 163,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Cruzília",
+    "estabelecimentos": 315,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Delfim Moreira",
+    "estabelecimentos": 160,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Delfinópolis",
+    "estabelecimentos": 210,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Divisa Nova",
+    "estabelecimentos": 80,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Dom Viçoso",
+    "estabelecimentos": 58,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Elói Mendes",
+    "estabelecimentos": 536,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Espírito Santo do Dourado",
+    "estabelecimentos": 90,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Estiva",
+    "estabelecimentos": 239,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Extrema",
+    "estabelecimentos": 1885,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Fama",
+    "estabelecimentos": 68,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Fortaleza de Minas",
+    "estabelecimentos": 56,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Gonçalves",
+    "estabelecimentos": 274,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guapé",
+    "estabelecimentos": 237,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guaranésia",
+    "estabelecimentos": 274,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Guaxupé",
+    "estabelecimentos": 1209,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Heliodora",
+    "estabelecimentos": 107,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ibiraci",
+    "estabelecimentos": 124,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ibitiúra de Minas",
+    "estabelecimentos": 52,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ilicínea",
+    "estabelecimentos": 185,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Inconfidentes",
+    "estabelecimentos": 159,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ipuiúna",
+    "estabelecimentos": 133,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itajubá",
+    "estabelecimentos": 2372,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itamogi",
+    "estabelecimentos": 138,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itamonte",
+    "estabelecimentos": 400,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itanhandu",
+    "estabelecimentos": 317,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itapeva",
+    "estabelecimentos": 431,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Itaú de Minas",
+    "estabelecimentos": 309,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jacuí",
+    "estabelecimentos": 118,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jacutinga",
+    "estabelecimentos": 602,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Jesuânia",
+    "estabelecimentos": 97,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Juruaia",
+    "estabelecimentos": 156,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Lambari",
+    "estabelecimentos": 477,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Liberdade",
+    "estabelecimentos": 101,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Machado",
+    "estabelecimentos": 763,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Maria da Fé",
+    "estabelecimentos": 198,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Marmelópolis",
+    "estabelecimentos": 57,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Minduri",
+    "estabelecimentos": 75,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monsenhor Paulo",
+    "estabelecimentos": 145,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Belo",
+    "estabelecimentos": 155,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Santo de Minas",
+    "estabelecimentos": 301,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Monte Sião",
+    "estabelecimentos": 402,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Munhoz",
+    "estabelecimentos": 126,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Muzambinho",
+    "estabelecimentos": 421,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Natércia",
+    "estabelecimentos": 55,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Nova Resende",
+    "estabelecimentos": 147,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Olímpio Noronha",
+    "estabelecimentos": 47,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Ouro Fino",
+    "estabelecimentos": 699,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Paraguaçu",
+    "estabelecimentos": 361,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Paraisópolis",
+    "estabelecimentos": 471,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passa Quatro",
+    "estabelecimentos": 379,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passa Vinte",
+    "estabelecimentos": 43,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Passos",
+    "estabelecimentos": 2336,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pedralva",
+    "estabelecimentos": 141,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Piranguçu",
+    "estabelecimentos": 93,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Piranguinho",
+    "estabelecimentos": 162,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Poço Fundo",
+    "estabelecimentos": 248,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Poços de Caldas",
+    "estabelecimentos": 4652,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pouso Alegre",
+    "estabelecimentos": 4389,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pouso Alto",
+    "estabelecimentos": 166,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Pratápolis",
+    "estabelecimentos": 159,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santa Rita de Caldas",
+    "estabelecimentos": 160,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santa Rita do Sapucaí",
+    "estabelecimentos": 965,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Santana da Vargem",
+    "estabelecimentos": 130,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Bento Abade",
+    "estabelecimentos": 74,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Gonçalo do Sapucaí",
+    "estabelecimentos": 470,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São João Batista do Glória",
+    "estabelecimentos": 234,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São João da Mata",
+    "estabelecimentos": 68,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São José da Barra",
+    "estabelecimentos": 231,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São José do Alegre",
+    "estabelecimentos": 63,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Lourenço",
+    "estabelecimentos": 1503,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Pedro da União",
+    "estabelecimentos": 57,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião da Bela Vista",
+    "estabelecimentos": 133,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião do Paraíso",
+    "estabelecimentos": 1315,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Sebastião do Rio Verde",
+    "estabelecimentos": 42,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Tomás de Aquino",
+    "estabelecimentos": 81,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Tomé das Letras",
+    "estabelecimentos": 544,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "São Vicente de Minas",
+    "estabelecimentos": 162,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Sapucaí-Mirim",
+    "estabelecimentos": 232,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Senador Amaral",
+    "estabelecimentos": 85,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Senador José Bento",
+    "estabelecimentos": 23,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Seritinga",
+    "estabelecimentos": 46,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Serrania",
+    "estabelecimentos": 96,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Serranos",
+    "estabelecimentos": 40,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Silvianópolis",
+    "estabelecimentos": 95,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Soledade de Minas",
+    "estabelecimentos": 125,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Tocos do Moji",
+    "estabelecimentos": 46,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Toledo",
+    "estabelecimentos": 127,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Três Corações",
+    "estabelecimentos": 1677,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Três Pontas",
+    "estabelecimentos": 1094,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Turvolândia",
+    "estabelecimentos": 91,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Varginha",
+    "estabelecimentos": 3957,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Virgínia",
+    "estabelecimentos": 179,
+    "data": "2025-07-31"
+  },
+  {
+    "municipio": "Wenceslau Braz",
+    "estabelecimentos": 372,
+    "data": "2025-07-31"
+  }
+]

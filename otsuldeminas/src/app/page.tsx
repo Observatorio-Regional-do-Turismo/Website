@@ -13,10 +13,9 @@ export default function Home() {
       <div className="
         min-h-[40vh] bg-[linear-gradient(to_bottom,rgba(255,255,255,0.5),rgba(255,255,255,1))]
         font-semibold text-2xl text-center items-center
-        flex px-36 gap-24 justify-center
+        flex px-36 justify-center
       ">
-        <p>Observatório tem como principais objetivos o monitoramento em rede da atividade turística na região, o incentivo à inovação, à inteligência de mercado e o fomento à pesquisa acadêmica em turismo. Isso será feito por meio do levantamento de pesquisas, dados, números e elaboração de </p>
-        <p>indicadores, entre outras ações que visam o desenvolvimento sustentável do setor. O Observatório também conta com o Programa de Capacitação Regional, voltado para a qualificação dos profissionais do turismo, e a criação de um Selo de Qualidade, que reconhecerá as melhores práticas no setor.</p>
+        <p>Observatório tem como principais objetivos o monitoramento em rede da atividade turística na região, o incentivo à inovação, à inteligência de mercado e o fomento à pesquisa acadêmica em turismo. Isso será feito por meio do levantamento de pesquisas, dados, números e elaboração de indicadores, entre outras ações que visam o desenvolvimento sustentável do setor. O Observatório também conta com o Programa de Capacitação Regional, voltado para a qualificação dos profissionais do turismo, e a criação de um Selo de Qualidade, que reconhecerá as melhores práticas no setor.</p>
       </div>
     </section>
     <section className="bg-background h-64">

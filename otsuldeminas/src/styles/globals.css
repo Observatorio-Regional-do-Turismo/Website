@@ -40,14 +40,6 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #312A2A;
-    --foreground: #ffffff;
-    --highlight: #25D318;
-  }
-} */
-
 @theme inline {
   --color-background: var(--background);
   --color-background2: var(--background2);

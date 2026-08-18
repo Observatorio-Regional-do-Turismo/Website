@@ -13,7 +13,9 @@ export const metadata: Metadata = {
   title: "Observatório Regional do Turismo",
 };
 
-export default function RootLayout({children}: LayoutProps) {
+import { Navbar } from "@/components/Navbar";
+
+export default function RootLayout({children}: AppLayoutProps) {
 
   return (
     <html lang="pt-br" className="min-h-screen">
@@ -21,6 +23,7 @@ export default function RootLayout({children}: LayoutProps) {
         <link rel="icon" href="/assets/favicon.ico" sizes="any" />
       </Head>
       <body className={`${gabarito.variable} antialiased text-foreground min-h-screen flex flex-col`}>
+        <Navbar />
         {children}
         <Footer />
       </body>

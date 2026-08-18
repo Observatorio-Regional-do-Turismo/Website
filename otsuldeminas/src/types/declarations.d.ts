@@ -1,4 +1,4 @@
-declare type LayoutProps = Readonly<{
+declare type AppLayoutProps = Readonly<{
   children: React.ReactNode;
 }>
 

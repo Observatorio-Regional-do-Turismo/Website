@@ -1,12 +1,17 @@
-import AgendaCalendar from "../AgendaCalendar";
+import { CalendarDays } from "lucide-react";
 
-export default function CityAgenda(){
-  return <>
-    <section className="flex flex-col gap-4">
-      <h2 className="font-semibold text-6xl">Calendário</h2>
-      <div className="px-12 flex flex-col gap-4">
-        <AgendaCalendar />
+export default function CityAgendaPage({ params }: { params: { city: string } }) {
+  const cityName = decodeURIComponent(params.city);
+  
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <div className="bg-primary/10 p-6 rounded-full mb-6">
+        <CalendarDays className="h-16 w-16 text-primary" />
       </div>
-    </section>
-  </>
+      <h1 className="text-4xl font-bold text-slate-800 mb-4 capitalize">Agenda: {cityName}</h1>
+      <p className="text-lg text-slate-600 max-w-lg">
+        Esta funcionalidade está sendo desenvolvida. Em breve você terá acesso a um calendário detalhado com todos os eventos turísticos específicos desta cidade.
+      </p>
+    </div>
+  );
 }

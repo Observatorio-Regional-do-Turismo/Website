@@ -1,10 +1,7 @@
-import Header from "@/components/Header";
-
-export default function RootLayout({children}: LayoutProps) {
+export default function RootLayout({children}: AppLayoutProps) {
 
   return <>
-    <Header color="highlight" />
-    <main className="px-12 py-8 flex flex-col gap-4 grow">
+    <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-4 grow">
       {children}
     </main>
   </>

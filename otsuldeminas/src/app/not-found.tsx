@@ -1,9 +1,7 @@
-import Header from "@/components/Header"
 import Link from "next/link"
 
 export default function NotFound(){
   return <>
-    <Header color="highlight" />
     <main className="flex flex-col grow items-center justify-center gap-3">
       <h1 className="text-2xl font-medium">Página não encontrada!</h1>
       <p 

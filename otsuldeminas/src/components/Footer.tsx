@@ -1,8 +1,8 @@
-
+import { CheckCircle2 } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
+    <footer className="bg-slate-900 border-t-4 border-accent mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col md:flex-row items-center gap-4">
@@ -27,7 +27,11 @@ export default function Footer() {
             </div>
           </div>
           
-          <div className="text-center md:text-right">
+          <div className="flex flex-col items-center gap-4 text-center md:items-end md:text-right">
+            <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-5 py-2.5 text-sm font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+              <CheckCircle2 className="mr-2 h-5 w-5" />
+              Base Atualizada: Agosto/2026
+            </span>
             <p className="text-sm text-slate-300">
               &copy; {new Date().getFullYear()} Observatório de Turismo.
             </p>

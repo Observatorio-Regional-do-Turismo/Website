@@ -89,11 +89,11 @@ const ExportMenu = ({ onExportCSV, onExportPNG }: { onExportCSV: () => void, onE
 
 // Cores para as diferentes cidades no gráfico
 const CITY_COLORS = [
-  "#2F9E41", "#1d4ed8", "#b91c1c", "#eab308", "#9333ea", 
-  "#0891b2", "#ea580c", "#4c1d95", "#059669", "#be123c"
+  "#359830", "#287524", "#1D5C1B", "#5BAF56", "#C90C0F",
+  "#359830", "#287524", "#1D5C1B", "#5BAF56", "#C90C0F"
 ];
 
-const COLORS = ["#2F9E41", "#4CAF50", "#81C784", "#A5D6A7", "#C8E6C9", "#1B5E20"];
+const COLORS = ["#359830", "#287524", "#1D5C1B", "#5BAF56", "#EAF4E9", "#C90C0F"];
 
 export default function Dashboard() {
   const [estabelecimentos, setEstabelecimentos] = useState<any[]>([]);
@@ -358,7 +358,7 @@ export default function Dashboard() {
       <text 
         x={x} 
         y={y} 
-        fill="#334155" // Força o texto a ser Cinza Escuro (legível) ignorando a cor da fatia
+        fill="#292929" // Força o texto a ser escuro e legível, ignorando a cor da fatia
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central" 
         fontSize={11}
@@ -553,21 +553,15 @@ export default function Dashboard() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex flex-col gap-1">
                   <div className="h-5 w-2 md:h-7 md:w-3 bg-primary rounded-t-full shadow-lg shadow-primary/20"></div>
-                  <div className="h-5 w-2 md:h-7 md:w-3 bg-secondary rounded-b-full shadow-lg shadow-secondary/20"></div>
+                  <div className="h-5 w-2 md:h-7 md:w-3 bg-accent rounded-b-full shadow-lg shadow-accent/20"></div>
                 </div>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white uppercase drop-shadow-lg print:text-slate-900 print:drop-shadow-none">
-                  Observatório de <span className="text-secondary">Turismo</span>
+                  Observatório de <span className="text-accent">Turismo</span>
                 </h1>
               </div>
               <p className="text-slate-300 text-lg md:text-2xl font-medium ml-5 drop-shadow-sm tracking-wide print:text-slate-600 print:drop-shadow-none">
                 do Sul de Minas Gerais • Instituto Federal
               </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-5 py-2.5 text-sm md:text-base font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 backdrop-blur-md shadow-lg">
-                <CheckCircle2 className="mr-2 h-5 w-5" />
-                Base Atualizada: Agosto/2026
-              </span>
             </div>
           </div>
         </div>
@@ -714,10 +708,10 @@ export default function Dashboard() {
             <CardContent id="chart-estabelecimentos" className="h-[400px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartDataEstabelecimentos} margin={{ top: 20, right: 10, left: 0, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{fontSize: 12, fill: '#64748b'}} interval={0} angle={-45} textAnchor="end" height={90} />
-                  <YAxis tick={{fontSize: 12, fill: '#64748b'}} width={45} tickFormatter={formatNumber} />
-                  <Tooltip cursor={{fill: '#f8fafc'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
+                  <XAxis dataKey="name" tick={{fontSize: 12, fill: '#292929'}} interval={0} angle={-45} textAnchor="end" height={90} />
+                  <YAxis tick={{fontSize: 12, fill: '#292929'}} width={45} tickFormatter={formatNumber} />
+                  <Tooltip cursor={{fill: '#EAF4E9'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
                   {dataKeys.map((key, i) => (
                     <Bar key={key} dataKey={key} fill={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} radius={[4, 4, 0, 0]} />
@@ -798,13 +792,13 @@ export default function Dashboard() {
                         <Cell key={`cell-${index}`} fill={getPieCellColor(index)} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: '1px solid #EAF4E9', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                   </PieChart>
                 ) : (
                   <LineChart data={chartDataFuncionarios} margin={{ top: 20, right: 10, left: 0, bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{fontSize: 12, fill: '#64748b'}} interval={0} angle={-45} textAnchor="end" height={90} />
-                    <YAxis tick={{fontSize: 12, fill: '#64748b'}} width={45} tickFormatter={formatNumber} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
+                    <XAxis dataKey="name" tick={{fontSize: 12, fill: '#292929'}} interval={0} angle={-45} textAnchor="end" height={90} />
+                    <YAxis tick={{fontSize: 12, fill: '#292929'}} width={45} tickFormatter={formatNumber} />
                     <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                     <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
                     {dataKeys.map((key, i) => (
@@ -912,9 +906,9 @@ export default function Dashboard() {
             <CardContent id="chart-estoque" className="h-[400px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartDataEstoque} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 12, fill: '#64748b'}} height={50} dy={15} />
-                  <YAxis tick={{fontSize: 12, fill: '#64748b'}} width={50} tickFormatter={formatNumber} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
+                  <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 12, fill: '#292929'}} height={50} dy={15} />
+                  <YAxis tick={{fontSize: 12, fill: '#292929'}} width={50} tickFormatter={formatNumber} />
                   <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '15px' }} />
                   {dataKeys.map((key, i) => (
@@ -924,7 +918,7 @@ export default function Dashboard() {
                       dataKey={key} 
                       stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
                       strokeWidth={3} 
-                      dot={{r: 3, fill: isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)", strokeWidth: 2, stroke: "#fff"}} 
+                      dot={{r: 3, fill: isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)", strokeWidth: 2, stroke: "#fff"}}
                       activeDot={{r: 6, strokeWidth: 0}} 
                     />
                   ))}
@@ -938,7 +932,7 @@ export default function Dashboard() {
         <div className="pt-8 border-t border-slate-200">
           <div className="mb-6 flex flex-col sm:flex-row items-center gap-3">
             <h2 className="text-2xl font-bold text-slate-800">Análises Exploratórias</h2>
-            <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded border border-slate-200">Novos Gráficos</span>
+            <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-1 rounded border border-accent/30">Novos Gráficos</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 print:flex print:flex-col print:gap-12">
@@ -971,9 +965,9 @@ export default function Dashboard() {
                         </linearGradient>
                       ))}
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 10, fill: '#94a3b8'}} dy={10} />
-                    <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} tickFormatter={formatNumber} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
+                    <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 10, fill: '#292929'}} dy={10} />
+                    <YAxis tick={{fontSize: 10, fill: '#292929'}} tickFormatter={formatNumber} />
                     <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                     {dataKeys.map((key, i) => (
                       <Area 
@@ -1007,8 +1001,8 @@ export default function Dashboard() {
               <CardContent id="chart-perfil" className="h-[350px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="name" tick={{fontSize: 10, fill: '#475569'}} />
+                    <PolarGrid stroke="#EAF4E9" />
+                    <PolarAngleAxis dataKey="name" tick={{fontSize: 10, fill: '#292929'}} />
                     <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{fontSize: 10}} tickFormatter={formatNumber} />
                     <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
@@ -1045,10 +1039,10 @@ export default function Dashboard() {
                 <CardContent id="chart-ranking" className="h-[350px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartDataRanking} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                      <XAxis type="number" tick={{fontSize: 10, fill: '#94a3b8'}} tickFormatter={formatNumber} />
-                      <YAxis dataKey="cidade" type="category" tick={{fontSize: 11, fill: '#475569'}} width={80} />
-                      <Tooltip cursor={{fill: '#f8fafc'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAF4E9" />
+                      <XAxis type="number" tick={{fontSize: 10, fill: '#292929'}} tickFormatter={formatNumber} />
+                      <YAxis dataKey="cidade" type="category" tick={{fontSize: 11, fill: '#292929'}} width={80} />
+                      <Tooltip cursor={{fill: '#EAF4E9'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                       <Bar dataKey="funcionarios" name="Funcionários" fill="var(--primary)" radius={[0, 4, 4, 0]}>
                         {chartDataRanking.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length] || "var(--primary)"} />

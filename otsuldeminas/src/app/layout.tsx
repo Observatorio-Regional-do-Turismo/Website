@@ -24,7 +24,9 @@ export default function RootLayout({children}: AppLayoutProps) {
       </Head>
       <body className={`${gabarito.variable} antialiased text-foreground min-h-screen flex flex-col`}>
         <Navbar />
-        {children}
+        <main className="flex-1 flex flex-col w-full">
+          {children}
+        </main>
         <Footer />
       </body>
     </html>

@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Papa from "papaparse";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell,
@@ -10,7 +9,7 @@ import {
   AreaChart, Area
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Filter, PieChart as PieChartIcon, LineChart as LineChartIcon, X, CheckCircle2, AlertTriangle, AlertCircle, Info, ChevronRight, Search, Download, FileText, Image as ImageIcon, ChevronDown, Trash2 } from "lucide-react";
+import { Filter, PieChart as PieChartIcon, LineChart as LineChartIcon, X, CheckCircle2, AlertTriangle, AlertCircle, Info, ChevronRight, Search, Download, FileText, Image as ImageIcon, ChevronDown, Trash2, RefreshCw } from "lucide-react";
 
 const formatNumber = (value: number | string) => {
   if (typeof value === 'string') value = parseFloat(value);
@@ -95,12 +94,16 @@ const CITY_COLORS = [
 
 const COLORS = ["#359830", "#287524", "#1D5C1B", "#5BAF56", "#EAF4E9", "#C90C0F"];
 
+import { fetchJSONAndFlatten, globalCache } from "@/lib/api";
+
 export default function Dashboard() {
   const [estabelecimentos, setEstabelecimentos] = useState<any[]>([]);
   const [funcionarios, setFuncionarios] = useState<any[]>([]);
   const [estoque, setEstoque] = useState<any[]>([]);
   const [postos, setPostos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("Conectando ao banco de dados...");
   
   const [selectedCities, setSelectedCities] = useState<string[]>(["Poços de Caldas"]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,25 +119,38 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadData = async () => {
-      const parseCSV = async (url: string) => {
-        const response = await fetch(url);
-        const csvString = await response.text();
-        return new Promise<any[]>((resolve) => {
-          Papa.parse(csvString, {
-            header: true,
-            skipEmptyLines: true,
-            transformHeader: (h) => h.trim(),
-            complete: (res) => resolve(res.data),
-          });
-        });
-      };
-
       try {
+        const baseUrl = "/api/externo";
+        
+        // Se já está no cache, vai rápido
+        if (globalCache['estabelecimentos'] && globalCache['funcionarios']) {
+          setProgress(100);
+          setLoadingMessage("Carregando layout...");
+        } else {
+          setProgress(10);
+          setLoadingMessage("Buscando estabelecimentos (1/4)...");
+        }
+        
+        let completed = 0;
+        const total = 4;
+        const msgs = [
+          "Processando funcionários (2/4)...", 
+          "Mapeando estoque acumulado (3/4)...", 
+          "Calculando postos de trabalho (4/4)...",
+          "Montando painéis..."
+        ];
+        
+        const updateProgress = (index: number) => {
+          completed++;
+          setProgress(Math.floor((completed / total) * 100));
+          setLoadingMessage(msgs[index]);
+        };
+
         const [estData, funcData, estoqueData, postosData] = await Promise.all([
-          parseCSV("/data/estabelecimentos.csv"),
-          parseCSV("/data/funcionarios.csv"),
-          parseCSV("/data/estoque_acumulado.csv"),
-          parseCSV("/data/postos.csv"),
+          fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos').then(d => { updateProgress(0); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios').then(d => { updateProgress(1); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/estoque_acumulado`, 'estoque').then(d => { updateProgress(2); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos').then(d => { updateProgress(3); return d; }),
         ]);
         
         // --- INJEÇÃO DE DADOS PARA DEMONSTRAÇÃO NA REUNIÃO ---
@@ -513,7 +529,30 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-slate-50 flex flex-col relative">
+        
+        {/* Loading Overlay (Heurística de Nielsen: Visibilidade do Status do Sistema) */}
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-slate-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-slate-800">Preparando Painel</h3>
+              <span className="text-emerald-600 font-bold">{progress}%</span>
+            </div>
+            
+            <div className="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden">
+              <div 
+                className="bg-emerald-600 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex items-center text-slate-600 text-sm font-medium">
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin text-emerald-600" />
+              {loadingMessage}
+            </div>
+          </div>
+        </div>
+
         {/* Skeleton Header */}
         <div className="h-64 bg-slate-900 animate-pulse w-full"></div>
         {/* Skeleton Filter Bar */}

@@ -6,28 +6,33 @@ import { Search, X, MapPin, Sparkles } from "lucide-react";
 import { CIDADES, type Cidade } from "@/data/cidades";
 import { CidadeCard } from "@/components/CidadeCard";
 import { CidadeDetalhesModal } from "@/components/CidadeDetalhesModal";
+import { fetchCidades } from "@/lib/cidades-api";
 
 function CidadesContent() {
   const searchParams = useSearchParams();
+  const [cidades, setCidades] = useState<Cidade[]>(CIDADES);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCidade, setSelectedCidade] = useState<Cidade | null>(null);
 
-  // Sincronização com query param da URL (?cidade=slug)
+  useEffect(() => {
+    fetchCidades()
+      .then((loadedCidades) => {
+        setCidades(loadedCidades);
+      });
+  }, []);
+
   useEffect(() => {
     const cidadeParam = searchParams.get("cidade");
     if (cidadeParam) {
-      const match = CIDADES.find(
-        (c) => c.slug === cidadeParam || c.nome.toLowerCase() === cidadeParam.toLowerCase()
-      );
+      const match = cidades.find((c) => c.slug === cidadeParam || c.nome.toLowerCase() === cidadeParam.toLowerCase());
       if (match) {
         setSelectedCidade(match);
       }
     }
-  }, [searchParams]);
+  }, [cidades, searchParams]);
 
   const handleSelectCidade = (cidade: Cidade) => {
     setSelectedCidade(cidade);
-    // Atualiza a URL sem recarregar a página para permitir compartilhamento direto
     const newUrl = `/cidades?cidade=${encodeURIComponent(cidade.slug)}`;
     window.history.pushState({ path: newUrl }, "", newUrl);
   };
@@ -37,12 +42,11 @@ function CidadesContent() {
     window.history.pushState({ path: "/cidades" }, "", "/cidades");
   };
 
-  // Normalização para busca sem acentos e case-insensitive
   const filteredCidades = useMemo(() => {
     const normalizeText = (text: string) =>
       text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-    let result = CIDADES;
+    let result = cidades;
 
     if (searchTerm.trim()) {
       const lowerQuery = normalizeText(searchTerm.trim());
@@ -50,7 +54,7 @@ function CidadesContent() {
     }
 
     return result;
-  }, [searchTerm]);
+  }, [cidades, searchTerm]);
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">

@@ -10,6 +10,7 @@ import {
   FileText, 
   Menu,
   X,
+  Building,
   Landmark,
   CalendarDays,
   GraduationCap,
@@ -23,12 +24,12 @@ export function Navbar() {
   const navItems = [
     { name: "Home", icon: Landmark, path: "/" },
     { name: "Visão Geral", icon: BarChart3, path: "/dashboard" },
+    { name: "Cidades", icon: Building, path: "/cidades" },
     { name: "Mapa", icon: Map, path: "/mapa" },
     { name: "Agenda", icon: CalendarDays, path: "/agenda" },
     { name: "Cursos", icon: GraduationCap, path: "/cursos" },
     { name: "Selos", icon: Award, path: "/selos" },
     { name: "Relatórios", icon: FileText, path: "/relatorios" },
-    { name: "Cidades", icon: Landmark, path: "/cidades" },
   ];
 
   return (

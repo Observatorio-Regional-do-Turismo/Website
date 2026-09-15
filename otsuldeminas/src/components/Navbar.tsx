@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import logo from "@/assets/Logo_otsuldeminas.png";
 import { 
+  Home as HomeIcon,
   Map, 
   BarChart3, 
   FileText, 
   Menu,
   X,
-  Landmark,
+  Building2,
   CalendarDays,
   GraduationCap,
   Award
@@ -21,14 +22,14 @@ export function Navbar() {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Home", icon: Landmark, path: "/" },
+    { name: "Home", icon: HomeIcon, path: "/" },
     { name: "Visão Geral", icon: BarChart3, path: "/dashboard" },
+    { name: "Cidades", icon: Building2, path: "/cidades" },
     { name: "Mapa", icon: Map, path: "/mapa" },
     { name: "Agenda", icon: CalendarDays, path: "/agenda" },
     { name: "Cursos", icon: GraduationCap, path: "/cursos" },
     { name: "Selos", icon: Award, path: "/selos" },
     { name: "Relatórios", icon: FileText, path: "/relatorios" },
-    { name: "Cidades", icon: Landmark, path: "/cidades" },
   ];
 
   return (

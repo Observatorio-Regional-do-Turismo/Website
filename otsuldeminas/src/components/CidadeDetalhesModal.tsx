@@ -54,12 +54,11 @@ interface CombinedCityItem {
 }
 
 interface CidadeDetalhesModalProps {
-  cidade: Cidade | null;
+  cidade: ApiCidade;
   onClose: () => void;
-  onEdit?: (cidade: Cidade) => void;
 }
 
-export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesModalProps) {
+export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
   const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
   const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
@@ -82,14 +81,14 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
             fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos') as Promise<CityRecord[]>,
             fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios') as Promise<CityRecord[]>,
             fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos') as Promise<CityRecord[]>,
-            fetchDadosIBGECidade(cidade.nome),
+            fetchDadosIBGECidade(cidade.name),
           ]);
           
           setIbgeData(ibgeRes);
 
-          const estCity = estData.filter((r) => r['Município'] === cidade.nome);
-          const funcCity = funcData.filter((r) => r['Município'] === cidade.nome);
-          const postosCity = postosData.filter((r) => r['Município'] === cidade.nome);
+          const estCity = estData.filter((r) => r['Município'] === cidade.name);
+          const funcCity = funcData.filter((r) => r['Município'] === cidade.name);
+          const postosCity = postosData.filter((r) => r['Município'] === cidade.name);
           
           setRealEstabelecimentos(estCity);
           setRawPostosCity(postosCity);
@@ -190,9 +189,9 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
     ? Number(restItem['Estabelecimentos']).toLocaleString('pt-BR') 
     : (cidade.restaurantes ? Number(cidade.restaurantes).toLocaleString('pt-BR') : "0");
 
-  const pibExibido = ibgeData?.pibFormatado && ibgeData.pibFormatado !== "N/D" 
-    ? ibgeData.pibFormatado 
-    : (cidade.pib ? formatarPIB(cidade.pib) : "R$ —");
+  // const pibExibido = ibgeData?.pibFormatado && ibgeData.pibFormatado !== "N/D" 
+  //   ? ibgeData.pibFormatado 
+  //   : (cidade.pib ? formatarPIB(cidade.pib) : "R$ —");
 
   const popExibida = ibgeData?.populacaoFormatada && ibgeData.populacaoFormatada !== "N/D" 
     ? ibgeData.populacaoFormatada 
@@ -209,16 +208,6 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
       >
         {/* Botões de Ação FIXOS no modal (não rolam) */}
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-2">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(cidade)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary/90 hover:bg-primary text-white rounded-full text-xs font-semibold backdrop-blur-md border border-primary/30 shadow-md transition-all duration-150 cursor-pointer hover:scale-105 active:scale-95"
-              title={`Editar informações de ${cidade.nome}`}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>Editar</span>
-            </button>
-          )}
           <button
             onClick={onClose}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/40 hover:bg-black/70 text-white rounded-full text-xs font-semibold backdrop-blur-md border border-white/20 shadow-md transition-all duration-150 cursor-pointer"
@@ -236,17 +225,17 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
               1. HEADER / HERO DA CIDADE
           ========================================================= */}
           <div className="relative w-full min-h-[300px] sm:min-h-[350px] bg-slate-900 overflow-hidden flex flex-col justify-end p-6 sm:p-8 shrink-0">
-            {/* Background Image */}
-            {!imageError && cidade.imagem ? (
-              <img
-                src={cidade.imagem}
-                alt={cidade.nome}
-                className="absolute inset-0 w-full h-full object-cover opacity-70"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-slate-900 to-slate-900 opacity-90" />
-            )}
+            {
+              !imageError && cidade.imagens[0]?
+                <img
+                  src={cidade.imagens[0].image}
+                  alt={cidade.imagens[0].alt_text}
+                  className="absolute inset-0 w-full h-full object-cover opacity-70"
+                  onError={() => setImageError(true)}
+                />
+              : 
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-slate-900 to-slate-900 opacity-90" />
+            }
 
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-transparent" />
@@ -255,7 +244,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
             <div className="relative z-10 w-full flex flex-col xl:flex-row xl:items-end justify-between gap-6">
               <div className="max-w-3xl">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md mb-2">
-                  {cidade.nome}
+                  {cidade.name}
                 </h1>
               </div>
 
@@ -274,7 +263,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                     <div className="h-7 w-24 bg-white/20 rounded animate-pulse mt-0.5" />
                   ) : (
                     <span className="text-lg sm:text-xl font-extrabold text-white">
-                      {pibExibido}
+                      {/* {pibExibido} */} Add PIB
                     </span>
                   )}
                 </div>
@@ -346,7 +335,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                 Sobre a Cidade
               </span>
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed text-justify max-w-4xl">
-                {cidade.descricao}
+                {cidade.description}
               </p>
             </div>
 
@@ -360,7 +349,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                   Principais Atrativos
                 </span>
                 <div className="space-y-3.5 flex-1">
-                  {cidade.atrativos.map((atrativo, index) => (
+                  {/* {cidade.atrativos.map((atrativo, index) => (
                     <div key={atrativo.nome} className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors">
                       <span className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm ${index === 0 ? "bg-accent" : index === 1 ? "bg-primary" : "bg-slate-600"}`}>
                         {index + 1}
@@ -370,7 +359,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                         <span className="text-xs text-slate-500 font-medium">{atrativo.categoria}</span>
                       </div>
                     </div>
-                  ))}
+                  ))} */}
                 </div>
               </div>
 
@@ -380,7 +369,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                   Próximos Eventos
                 </span>
                 <div className="space-y-3">
-                  {cidade.eventos.map((evento) => {
+                  {/* {cidade.eventos.map((evento) => {
                     const [dia, mes] = evento.data.split(" ");
                     return (
                       <div key={evento.titulo} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors gap-3">
@@ -402,7 +391,7 @@ export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesM
                         </span>
                       </div>
                     );
-                  })}
+                  })} */}
                 </div>
               </div>
             </div>

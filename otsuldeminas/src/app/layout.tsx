@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
-import "@/styles/globals.css";
+import "../styles/globals.css";
 import Footer from "@/components/Footer";
 import Head from "next/head";
 

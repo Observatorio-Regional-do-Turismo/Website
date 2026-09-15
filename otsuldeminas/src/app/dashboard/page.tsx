@@ -120,7 +120,11 @@ export default function Dashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const baseUrl = "/api/externo";
+        const baseUrl = process.env.NEXT_PUBLIC_GRAPHS_URL;
+        if(!baseUrl){
+          console.error("GRAPHS_URL não está definido no arquivo .env");
+          return;
+        }
 
         // Se já está no cache, vai rápido
         if (globalCache['estabelecimentos'] && globalCache['funcionarios']) {
@@ -147,10 +151,10 @@ export default function Dashboard() {
         };
 
         const [estData, funcData, estoqueData, postosData] = await Promise.all([
-          fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos').then(d => { updateProgress(0); return d; }),
-          fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios').then(d => { updateProgress(1); return d; }),
-          fetchJSONAndFlatten(`${baseUrl}/estoque_acumulado`, 'estoque').then(d => { updateProgress(2); return d; }),
-          fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos').then(d => { updateProgress(3); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos').then(d => { updateProgress(0); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios').then(d => { updateProgress(1); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/estoque_acumulado/`, 'estoque').then(d => { updateProgress(2); return d; }),
+          fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/`, 'postos').then(d => { updateProgress(3); return d; }),
         ]);
 
         // --- INJEÇÃO DE DADOS PARA DEMONSTRAÇÃO NA REUNIÃO ---

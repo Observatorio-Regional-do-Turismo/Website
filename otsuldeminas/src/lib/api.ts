@@ -9,6 +9,7 @@ export const fetchJSONAndFlatten = async (url: string, type: DataType): Promise<
   }
   
   try {
+    console.log(url)
     const response = await fetch(url);
     if (!response.ok) return [];
     const json = await response.json();

@@ -9,9 +9,11 @@ import { CidadeDetalhesModal } from "@/components/CidadeDetalhesModal";
 import { AdicionarCidadeModal } from "@/components/AdicionarCidadeModal";
 
 const STORAGE_KEY = "observatorio_custom_cidades";
+import { fetchCidades } from "@/lib/cidades-api";
 
 function CidadesContent() {
   const searchParams = useSearchParams();
+  const [cidades, setCidades] = useState<Cidade[]>(CIDADES);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCidade, setSelectedCidade] = useState<Cidade | null>(null);
   const [cidadeParaEditar, setCidadeParaEditar] = useState<Cidade | null>(null);
@@ -37,7 +39,13 @@ function CidadesContent() {
     }
   }, []);
 
-  // Sincronização com query param da URL (?cidade=slug)
+  useEffect(() => {
+    fetchCidades()
+      .then((loadedCidades) => {
+        setCidades(loadedCidades);
+      });
+  }, []);
+
   useEffect(() => {
     const cidadeParam = searchParams.get("cidade");
     if (cidadeParam) {
@@ -52,7 +60,6 @@ function CidadesContent() {
 
   const handleSelectCidade = (cidade: Cidade) => {
     setSelectedCidade(cidade);
-    // Atualiza a URL sem recarregar a página para permitir compartilhamento direto
     const newUrl = `/cidades?cidade=${encodeURIComponent(cidade.slug)}`;
     window.history.pushState({ path: newUrl }, "", newUrl);
   };

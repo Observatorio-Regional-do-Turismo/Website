@@ -35,13 +35,13 @@ import * as htmlToImage from 'html-to-image';
 const exportChartAsPNG = async (elementId: string, filename: string) => {
   const chartWrapper = document.getElementById(elementId);
   if (!chartWrapper) return;
-  
+
   try {
     const pngFile = await htmlToImage.toPng(chartWrapper, {
       pixelRatio: 2, // Melhor qualidade
       backgroundColor: "#ffffff",
     });
-    
+
     const downloadLink = document.createElement("a");
     downloadLink.download = `${filename}.png`;
     downloadLink.href = pngFile;
@@ -53,28 +53,28 @@ const exportChartAsPNG = async (elementId: string, filename: string) => {
 
 const ExportMenu = ({ onExportCSV, onExportPNG }: { onExportCSV: () => void, onExportPNG: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-        className="text-xs font-medium flex items-center gap-1.5 text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-primary transition-all px-3 py-1.5 rounded-md shadow-sm"
+        className="text-xs font-medium flex items-center gap-1.5 text-slate-700 bg-site-surface border border-slate-300 hover:bg-slate-50 hover:text-primary transition-all px-3 py-1.5 rounded-md shadow-sm"
       >
-        <Download className="h-3.5 w-3.5" /> 
+        <Download className="h-3.5 w-3.5" />
         Exportar
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
       </button>
-      
+
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-36 bg-white rounded-md shadow-lg border border-slate-200 z-50 overflow-hidden flex flex-col">
-          <button 
+        <div className="absolute right-0 mt-1 w-36 bg-site-surface rounded-md shadow-lg border border-slate-200 z-50 overflow-hidden flex flex-col">
+          <button
             onMouseDown={() => { onExportCSV(); setIsOpen(false); }}
             className="text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100"
           >
             <FileText className="h-3.5 w-3.5 text-emerald-600" /> Planilha (CSV)
           </button>
-          <button 
+          <button
             onMouseDown={() => { onExportPNG(); setIsOpen(false); }}
             className="text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
           >
@@ -104,7 +104,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Conectando ao banco de dados...");
-  
+
   const [selectedCities, setSelectedCities] = useState<string[]>(["Poços de Caldas"]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -121,7 +121,7 @@ export default function Dashboard() {
     const loadData = async () => {
       try {
         const baseUrl = "/api/externo";
-        
+
         // Se já está no cache, vai rápido
         if (globalCache['estabelecimentos'] && globalCache['funcionarios']) {
           setProgress(100);
@@ -130,16 +130,16 @@ export default function Dashboard() {
           setProgress(10);
           setLoadingMessage("Buscando estabelecimentos (1/4)...");
         }
-        
+
         let completed = 0;
         const total = 4;
         const msgs = [
-          "Processando funcionários (2/4)...", 
-          "Mapeando estoque acumulado (3/4)...", 
+          "Processando funcionários (2/4)...",
+          "Mapeando estoque acumulado (3/4)...",
           "Calculando postos de trabalho (4/4)...",
           "Montando painéis..."
         ];
-        
+
         const updateProgress = (index: number) => {
           completed++;
           setProgress(Math.floor((completed / total) * 100));
@@ -152,12 +152,12 @@ export default function Dashboard() {
           fetchJSONAndFlatten(`${baseUrl}/estoque_acumulado`, 'estoque').then(d => { updateProgress(2); return d; }),
           fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos').then(d => { updateProgress(3); return d; }),
         ]);
-        
+
         // --- INJEÇÃO DE DADOS PARA DEMONSTRAÇÃO NA REUNIÃO ---
         // Cidade Alfa: Totalmente ausente em Estabelecimentos e Funcionários (acionará ALERTA VERMELHO no gráfico de barras e pizza)
         // Só injetamos em Estoque para a cidade existir na caixa de buscas.
         estoqueData.push({ 'Município': 'Alfa (Sem Histórico)', 'Ano': '2023', 'Mês': '01', 'Estoque': '150' });
-        
+
         // Cidade Beta: Apenas 1 setor preenchido. Acionará ALERTA AMARELO (dados parciais) nos gráficos de Barras e Pizza
         estData.push({ 'Município': 'Beta (Dados Parciais)', 'Classificação': 'Hospedagem', 'Estabelecimentos': '12' });
         funcData.push({ 'Município': 'Beta (Dados Parciais)', 'Classificação': 'Hospedagem', 'Funcionarios': '320' });
@@ -195,12 +195,12 @@ export default function Dashboard() {
 
   const filteredCities = useMemo(() => {
     if (!searchTerm) return allCities;
-    
+
     // Função para remover acentos e caracteres especiais
     const normalizeText = (text: string) => {
       return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
-    
+
     const lowerSearch = normalizeText(searchTerm);
     return allCities.filter(city => normalizeText(city).includes(lowerSearch));
   }, [searchTerm, allCities]);
@@ -220,7 +220,7 @@ export default function Dashboard() {
   // Verde: Todos os dados ok, Amarelo: Faltam alguns (parcial), Vermelho: Não há dados
   const getDataStatus = (data: any[], type: 'total' | 'time') => {
     if (!isComparing) return { status: "green", message: "Selecione uma cidade para visualizar a integridade dos dados." };
-    
+
     let hasCompleteMiss = false;
     let hasPartialMiss = false;
     let messages: string[] = [];
@@ -243,7 +243,7 @@ export default function Dashboard() {
         const munKey = Object.keys(r).find(k => k.toLowerCase().includes("munic")) || "Município";
         return r[munKey] === city;
       });
-      
+
       if (rows.length === 0) {
         hasCompleteMiss = true;
         messages.push(`${city}: Sem dados registrados nesta categoria.`);
@@ -264,11 +264,11 @@ export default function Dashboard() {
         if (missing.length > 0) {
           // No gráfico temporal, só reclamar se tiver muito pouco dado
           if (type === 'time' && rows.length >= 24) return;
-          
+
           hasPartialMiss = true;
           const displayMissing = missing.slice(0, 3).join(", ");
           const andMore = missing.length > 3 ? ` e +${missing.length - 3}` : '';
-          
+
           if (type === 'total') {
             messages.push(`${city}: Faltam setores (${displayMissing}${andMore}).`);
           } else {
@@ -286,7 +286,7 @@ export default function Dashboard() {
   const renderStatusIcon = (statusInfo: { status: string, message: string }) => {
     const Icon = statusInfo.status === "green" ? CheckCircle2 : statusInfo.status === "yellow" ? AlertTriangle : AlertCircle;
     const colorClass = statusInfo.status === "green" ? "text-green-500" : statusInfo.status === "yellow" ? "text-yellow-500" : "text-red-500";
-    
+
     return (
       <div className="relative group flex items-center justify-center">
         <Icon className={`h-5 w-5 ${colorClass} cursor-help`} />
@@ -305,7 +305,7 @@ export default function Dashboard() {
       const classKey = Object.keys(curr).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
       const valKey = Object.keys(curr).find(k => k.toLowerCase().includes(valKeyTerm)) || valKeyTerm;
       const munKey = Object.keys(curr).find(k => k.toLowerCase().includes("munic")) || "Município";
-      
+
       const classificacao = curr[classKey];
       const cidade = curr[munKey];
       const qtde = parseInt(curr[valKey]) || 0;
@@ -314,30 +314,30 @@ export default function Dashboard() {
       if (!selectedCities.includes(cidade)) return acc;
 
       if (!acc[classificacao]) acc[classificacao] = { name: classificacao };
-      
+
       acc[classificacao][cidade] = (acc[classificacao][cidade] || 0) + qtde;
-      
+
       return acc;
     }, {});
   };
 
   const chartDataEstabelecimentos = Object.values(processData(estabelecimentos, "estabelecimentos"))
     .sort((a: any, b: any) => {
-       const sumA = dataKeys.reduce((s, k) => s + (a[k] || 0), 0);
-       const sumB = dataKeys.reduce((s, k) => s + (b[k] || 0), 0);
-       return sumB - sumA;
+      const sumA = dataKeys.reduce((s, k) => s + (a[k] || 0), 0);
+      const sumB = dataKeys.reduce((s, k) => s + (b[k] || 0), 0);
+      return sumB - sumA;
     });
 
   const rawFuncData = processData(funcionarios, "funcionario");
   const chartDataFuncionarios = Object.values(rawFuncData)
     .sort((a: any, b: any) => {
-       const sumA = dataKeys.reduce((s, k) => s + (a[k] || 0), 0);
-       const sumB = dataKeys.reduce((s, k) => s + (b[k] || 0), 0);
-       return sumB - sumA;
+      const sumA = dataKeys.reduce((s, k) => s + (a[k] || 0), 0);
+      const sumB = dataKeys.reduce((s, k) => s + (b[k] || 0), 0);
+      return sumB - sumA;
     });
 
-  const activePieCity = isComparing 
-    ? (pieChartCity === "Total" || selectedCities.includes(pieChartCity) ? pieChartCity : selectedCities[0]) 
+  const activePieCity = isComparing
+    ? (pieChartCity === "Total" || selectedCities.includes(pieChartCity) ? pieChartCity : selectedCities[0])
     : "Total";
 
   const pieChartData = chartDataFuncionarios.map((d: any) => {
@@ -353,13 +353,13 @@ export default function Dashboard() {
     if (activePieCity === "Total" || !isComparing) {
       return COLORS[index % COLORS.length];
     }
-    
+
     const cityIndex = selectedCities.indexOf(activePieCity);
     if (cityIndex === -1) return COLORS[index % COLORS.length];
-    
+
     const baseColor = CITY_COLORS[cityIndex % CITY_COLORS.length];
     // Opacidades Hex: 100%, 85%, 70%, 55%, 40%, 25% para criar tons diferentes
-    const opacities = ["FF", "D9", "B3", "8C", "66", "40"]; 
+    const opacities = ["FF", "D9", "B3", "8C", "66", "40"];
     return baseColor + opacities[index % opacities.length];
   };
 
@@ -369,14 +369,14 @@ export default function Dashboard() {
     const radius = outerRadius * 1.15; // Mantém o texto pertinho da pizza para não fugir da tela
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  
+
     return (
-      <text 
-        x={x} 
-        y={y} 
+      <text
+        x={x}
+        y={y}
         fill="#292929" // Força o texto a ser escuro e legível, ignorando a cor da fatia
-        textAnchor={x > cx ? 'start' : 'end'} 
-        dominantBaseline="central" 
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
         fontSize={11}
         fontWeight={500}
       >
@@ -391,18 +391,18 @@ export default function Dashboard() {
     const mesKey = Object.keys(curr).find(k => k.toLowerCase().includes("mês") || k.toLowerCase().includes("mes")) || "Mês";
     const estoqueKey = Object.keys(curr).find(k => k.toLowerCase().includes("estoque")) || "Estoque";
     const munKey = Object.keys(curr).find(k => k.toLowerCase().includes("munic")) || "Município";
-    
+
     const ano = curr[anoKey];
     const mes = curr[mesKey];
     const cidade = curr[munKey];
     const valor = parseInt(curr[estoqueKey]) || 0;
-    
+
     if (ano && mes) {
       if (!selectedCities.includes(cidade)) return acc;
 
       const dataStr = `${ano}-${mes.toString().padStart(2, '0')}`;
       if (!acc[dataStr]) acc[dataStr] = { data: dataStr };
-      
+
       acc[dataStr][cidade] = (acc[dataStr][cidade] || 0) + valor;
     }
     return acc;
@@ -430,18 +430,18 @@ export default function Dashboard() {
     const mesKey = Object.keys(curr).find(k => k.toLowerCase().includes("mês") || k.toLowerCase().includes("mes")) || "Mês";
     const saldoKey = Object.keys(curr).find(k => k.toLowerCase().includes("saldo")) || "Saldo";
     const munKey = Object.keys(curr).find(k => k.toLowerCase().includes("munic")) || "Município";
-    
+
     const ano = curr[anoKey];
     const mes = curr[mesKey];
     const cidade = curr[munKey];
     const valor = parseInt(curr[saldoKey]) || 0;
-    
+
     if (ano && mes) {
       if (!selectedCities.includes(cidade)) return acc;
 
       const dataStr = `${ano}-${mes.toString().padStart(2, '0')}`;
       if (!acc[dataStr]) acc[dataStr] = { data: dataStr };
-      
+
       acc[dataStr][cidade] = (acc[dataStr][cidade] || 0) + valor;
     }
     return acc;
@@ -463,10 +463,10 @@ export default function Dashboard() {
   const funcPorCidade = funcionarios.reduce((acc: any, curr: any) => {
     const munKey = Object.keys(curr).find(k => k.toLowerCase().includes("munic")) || "Município";
     const funcKey = Object.keys(curr).find(k => k.toLowerCase().includes("funcionario")) || "Funcionarios";
-    
+
     const cidade = curr[munKey];
     const qtde = parseInt(curr[funcKey]) || 0;
-    
+
     if (cidade) {
       if (!acc[cidade]) acc[cidade] = 0;
       acc[cidade] += qtde;
@@ -529,23 +529,23 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col relative">
-        
+      <div className="min-h-screen bg-background flex flex-col relative">
+
         {/* Loading Overlay (Heurística de Nielsen: Visibilidade do Status do Sistema) */}
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-slate-100">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-site-surface p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-slate-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-800">Preparando Painel</h3>
               <span className="text-emerald-600 font-bold">{progress}%</span>
             </div>
-            
+
             <div className="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden">
-              <div 
+              <div
                 className="bg-emerald-600 h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            
+
             <div className="flex items-center text-slate-600 text-sm font-medium">
               <RefreshCw className="w-4 h-4 mr-2 animate-spin text-emerald-600" />
               {loadingMessage}
@@ -556,7 +556,7 @@ export default function Dashboard() {
         {/* Skeleton Header */}
         <div className="h-64 bg-slate-900 animate-pulse w-full"></div>
         {/* Skeleton Filter Bar */}
-        <div className="h-20 bg-white border-b border-slate-200 shadow-sm animate-pulse w-full"></div>
+        <div className="h-20 bg-site-surface border-b border-slate-200 shadow-sm animate-pulse w-full"></div>
         {/* Skeleton Content */}
         <div className="max-w-7xl mx-auto w-full px-4 py-8 flex-1">
           {/* Skeleton Info Cards */}
@@ -577,7 +577,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main id="dashboard-main" className="min-h-screen bg-slate-50 pb-20">
+    <main id="dashboard-main" className="min-h-screen bg-background pb-20">
       {/* Header com Background */}
       <header className="relative bg-slate-900 shadow-xl print:bg-white print:shadow-none print:border-b print:border-slate-200">
         <div className="absolute inset-0 overflow-hidden print:hidden">
@@ -585,7 +585,7 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/30"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
         </div>
-        
+
         <div className="relative px-4 py-20 md:py-28 max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="max-w-4xl">
@@ -607,7 +607,7 @@ export default function Dashboard() {
       </header>
 
       {/* NOVA Seção de Filtro: Busca Inteligente & Chips */}
-      <div className="no-export print:hidden bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
+      <div className="no-export print:hidden bg-site-surface border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="relative flex-1 w-full max-w-md">
             <div className="relative">
@@ -626,10 +626,10 @@ export default function Dashboard() {
                 className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-slate-50 placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-colors"
               />
             </div>
-            
+
             {/* Dropdown de sugestões */}
             {isDropdownOpen && (
-              <div className="absolute z-50 mt-1 w-full bg-white shadow-lg rounded-md border border-slate-200 max-h-60 overflow-y-auto">
+              <div className="absolute z-50 mt-1 w-full bg-site-surface shadow-lg rounded-md border border-slate-200 max-h-60 overflow-y-auto">
                 <div className="p-2">
                   <div className="flex justify-between items-center px-2 py-1 mb-1 border-b border-slate-100 pb-2">
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cidades disponíveis</span>
@@ -668,7 +668,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          
+
           {/* Cidades Selecionadas (Chips) */}
           <div className="flex-1 flex flex-wrap gap-2 items-center min-h-[38px]">
             {selectedCities.length === 0 ? (
@@ -679,8 +679,8 @@ export default function Dashboard() {
               <>
                 <span className="text-sm font-semibold text-slate-600 mr-1 uppercase tracking-wide text-xs">Comparando:</span>
                 {selectedCities.map(city => (
-                  <span 
-                    key={city} 
+                  <span
+                    key={city}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-primary text-primary-foreground shadow-sm animate-in fade-in zoom-in duration-200"
                   >
                     {city}
@@ -706,20 +706,20 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
-        
+
         {/* Resumo Dinâmico */}
-        <div className="mb-8 p-6 bg-white rounded-xl shadow-sm border border-slate-100 flex items-start gap-4 print:shadow-none print:border-slate-200 print:break-inside-avoid">
+        <div className="mb-8 p-6 bg-site-surface rounded-xl shadow-sm border border-slate-100 flex items-start gap-4 print:shadow-none print:border-slate-200 print:break-inside-avoid">
           <div className="p-3 bg-primary/10 rounded-full text-primary mt-1">
             <Info className="h-6 w-6" />
           </div>
           <div>
             <h3 className="text-xl font-bold text-slate-800 mb-1">
-              {isComparing 
-                ? `Analisando ${selectedCities.length} cidade(s)` 
+              {isComparing
+                ? `Analisando ${selectedCities.length} cidade(s)`
                 : "Aguardando seleção de cidades"}
             </h3>
             <p className="text-slate-600 text-base leading-relaxed">
-              {isComparing 
+              {isComparing
                 ? `Você está visualizando indicadores turísticos restritos aos municípios de ${selectedCities.join(", ")}. Verifique os ícones de integridade de dados nos cantos dos gráficos: gráficos com exclamações amarelas ou vermelhas indicam que um ou mais municípios selecionados não enviaram dados completos para aquele indicador.`
                 : "Utilize a barra de busca acima para selecionar uma ou mais cidades. Os gráficos serão preenchidos automaticamente com os dados da região escolhida."}
             </p>
@@ -736,9 +736,9 @@ export default function Dashboard() {
                   <CardDescription>Quantidade de negócios classificados por categoria.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ExportMenu 
-                    onExportCSV={() => exportToCSV(chartDataEstabelecimentos, "estabelecimentos_setor")} 
-                    onExportPNG={() => exportChartAsPNG("chart-estabelecimentos", "estabelecimentos_setor")} 
+                  <ExportMenu
+                    onExportCSV={() => exportToCSV(chartDataEstabelecimentos, "estabelecimentos_setor")}
+                    onExportPNG={() => exportChartAsPNG("chart-estabelecimentos", "estabelecimentos_setor")}
                   />
                   {renderStatusIcon(getDataStatus(estabelecimentos, 'total'))}
                 </div>
@@ -748,9 +748,9 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartDataEstabelecimentos} margin={{ top: 20, right: 10, left: 0, bottom: 80 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                  <XAxis dataKey="name" tick={{fontSize: 12, fill: '#292929'}} interval={0} angle={-45} textAnchor="end" height={90} />
-                  <YAxis tick={{fontSize: 12, fill: '#292929'}} width={45} tickFormatter={formatNumber} />
-                  <Tooltip cursor={{fill: '#EAF4E9'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#292929' }} interval={0} angle={-45} textAnchor="end" height={90} />
+                  <YAxis tick={{ fontSize: 12, fill: '#292929' }} width={45} tickFormatter={formatNumber} />
+                  <Tooltip cursor={{ fill: '#EAF4E9' }} formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
                   {dataKeys.map((key, i) => (
                     <Bar key={key} dataKey={key} fill={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} radius={[4, 4, 0, 0]} />
@@ -768,29 +768,29 @@ export default function Dashboard() {
                   <CardTitle className="text-xl text-slate-800">Força de Trabalho</CardTitle>
                   <CardDescription>Distribuição de funcionários nos setores turísticos.</CardDescription>
                 </div>
-                
+
                 <div className="flex items-center gap-2 self-start">
-                  <ExportMenu 
-                    onExportCSV={() => exportToCSV(chartDataFuncionarios, "forca_trabalho")} 
-                    onExportPNG={() => exportChartAsPNG("chart-forca-trabalho", "forca_trabalho")} 
+                  <ExportMenu
+                    onExportCSV={() => exportToCSV(chartDataFuncionarios, "forca_trabalho")}
+                    onExportPNG={() => exportChartAsPNG("chart-forca-trabalho", "forca_trabalho")}
                   />
                   {renderStatusIcon(getDataStatus(funcionarios, 'total'))}
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap items-center justify-start gap-2">
                 <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
-                  <button 
-                    onClick={() => setShowPieChart(true)} 
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${showPieChart ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-400 hover:text-slate-700'}`}
+                  <button
+                    onClick={() => setShowPieChart(true)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${showPieChart ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-400 hover:text-slate-700'}`}
                     title="Visão em Pizza (Total)"
                   >
                     <PieChartIcon className="h-4 w-4" />
                     <span className="text-xs hidden sm:inline">Pizza</span>
                   </button>
-                  <button 
-                    onClick={() => setShowPieChart(false)} 
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${!showPieChart ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-400 hover:text-slate-700'}`}
+                  <button
+                    onClick={() => setShowPieChart(false)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${!showPieChart ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-400 hover:text-slate-700'}`}
                     title="Visão em Linhas (Comparativo)"
                   >
                     <LineChartIcon className="h-4 w-4" />
@@ -799,10 +799,10 @@ export default function Dashboard() {
                 </div>
 
                 {showPieChart && isComparing && (
-                  <select 
+                  <select
                     value={activePieCity}
                     onChange={(e) => setPieChartCity(e.target.value)}
-                    className="text-sm border border-slate-200 rounded-md p-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                    className="text-sm border border-slate-200 rounded-md p-1.5 bg-site-surface text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                   >
                     <option value="Total">Todas Selecionadas</option>
                     {selectedCities.map(city => (
@@ -831,24 +831,24 @@ export default function Dashboard() {
                         <Cell key={`cell-${index}`} fill={getPieCellColor(index)} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: '1px solid #EAF4E9', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: '1px solid #EAF4E9', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   </PieChart>
                 ) : (
                   <LineChart data={chartDataFuncionarios} margin={{ top: 20, right: 10, left: 0, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                    <XAxis dataKey="name" tick={{fontSize: 12, fill: '#292929'}} interval={0} angle={-45} textAnchor="end" height={90} />
-                    <YAxis tick={{fontSize: 12, fill: '#292929'}} width={45} tickFormatter={formatNumber} />
-                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#292929' }} interval={0} angle={-45} textAnchor="end" height={90} />
+                    <YAxis tick={{ fontSize: 12, fill: '#292929' }} width={45} tickFormatter={formatNumber} />
+                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
                     {dataKeys.map((key, i) => (
-                      <Line 
+                      <Line
                         key={key}
                         type="monotone"
-                        dataKey={key} 
-                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
+                        dataKey={key}
+                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"}
                         strokeWidth={2}
-                        dot={{r: 4, strokeWidth: 1}}
-                        activeDot={{r: 6, strokeWidth: 0}}
+                        dot={{ r: 4, strokeWidth: 1 }}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
                       />
                     ))}
                   </LineChart>
@@ -867,22 +867,22 @@ export default function Dashboard() {
                   <CardTitle className="text-xl text-slate-800">Estoque Acumulado de Empregos</CardTitle>
                   <CardDescription>Série histórica do volume de vagas ativas. (Filtros aplicam-se aos dois gráficos temporais)</CardDescription>
                 </div>
-                
+
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
                   {/* Filtros de Tempo */}
                   <div className="flex flex-col gap-2 no-export print:hidden">
                     <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-200 self-end relative">
-                      <button onClick={() => { setTimeFilter("6m"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "6m" ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>6 Meses</button>
-                      <button onClick={() => { setTimeFilter("12m"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "12m" ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>1 Ano</button>
-                      <button onClick={() => { setTimeFilter("all"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "all" ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>Tudo</button>
-                      
+                      <button onClick={() => { setTimeFilter("6m"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "6m" ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>6 Meses</button>
+                      <button onClick={() => { setTimeFilter("12m"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "12m" ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>1 Ano</button>
+                      <button onClick={() => { setTimeFilter("all"); setIsCustomDateOpen(false); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${timeFilter === "all" ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>Tudo</button>
+
                       <div>
-                        <button onClick={() => { setTimeFilter("custom"); setIsCustomDateOpen(!isCustomDateOpen); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors flex items-center ${timeFilter === "custom" ? 'bg-white shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>
+                        <button onClick={() => { setTimeFilter("custom"); setIsCustomDateOpen(!isCustomDateOpen); }} className={`px-3 py-1 text-xs sm:text-sm rounded-md transition-colors flex items-center ${timeFilter === "custom" ? 'bg-site-surface shadow-sm text-primary font-medium' : 'text-slate-500 hover:text-slate-700'}`}>
                           Personalizado <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${isCustomDateOpen ? 'rotate-180' : ''}`} />
                         </button>
-                        
+
                         {timeFilter === "custom" && isCustomDateOpen && (
-                          <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-64 origin-top-right animate-in fade-in zoom-in-95 duration-200">
+                          <div className="absolute top-full right-0 mt-2 p-4 bg-site-surface border border-slate-200 rounded-xl shadow-xl z-50 w-64 origin-top-right animate-in fade-in zoom-in-95 duration-200">
                             <h4 className="text-sm font-semibold text-slate-700 mb-3">Período Personalizado</h4>
                             <div className="flex flex-col gap-4">
                               <div>
@@ -933,9 +933,9 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <ExportMenu 
-                      onExportCSV={() => exportToCSV(chartDataEstoque, "estoque_acumulado")} 
-                      onExportPNG={() => exportChartAsPNG("chart-estoque", "estoque_acumulado")} 
+                    <ExportMenu
+                      onExportCSV={() => exportToCSV(chartDataEstoque, "estoque_acumulado")}
+                      onExportPNG={() => exportChartAsPNG("chart-estoque", "estoque_acumulado")}
                     />
                     {renderStatusIcon(getDataStatus(estoque, 'time'))}
                   </div>
@@ -946,19 +946,19 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartDataEstoque} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                  <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 12, fill: '#292929'}} height={50} dy={15} />
-                  <YAxis tick={{fontSize: 12, fill: '#292929'}} width={50} tickFormatter={formatNumber} />
-                  <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                  <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{ fontSize: 12, fill: '#292929' }} height={50} dy={15} />
+                  <YAxis tick={{ fontSize: 12, fill: '#292929' }} width={50} tickFormatter={formatNumber} />
+                  <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '12px', paddingBottom: '15px' }} />
                   {dataKeys.map((key, i) => (
-                    <Line 
+                    <Line
                       key={key}
-                      type="monotone" 
-                      dataKey={key} 
-                      stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
-                      strokeWidth={3} 
-                      dot={{r: 3, fill: isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)", strokeWidth: 2, stroke: "#fff"}}
-                      activeDot={{r: 6, strokeWidth: 0}} 
+                      type="monotone"
+                      dataKey={key}
+                      stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"}
+                      strokeWidth={3}
+                      dot={{ r: 3, fill: isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                     />
                   ))}
                 </LineChart>
@@ -975,7 +975,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 print:flex print:flex-col print:gap-12">
-            
+
             {/* Gráfico 1: Área - Saldo de Postos */}
             <Card className="shadow-sm hover:shadow-md transition-shadow border-slate-100 lg:col-span-2 xl:col-span-1">
               <CardHeader>
@@ -985,9 +985,9 @@ export default function Dashboard() {
                     <CardDescription>Balanço líquido de empregos gerados.</CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ExportMenu 
-                      onExportCSV={() => exportToCSV(chartDataPostos, "saldo_postos")} 
-                      onExportPNG={() => exportChartAsPNG("chart-postos", "saldo_postos")} 
+                    <ExportMenu
+                      onExportCSV={() => exportToCSV(chartDataPostos, "saldo_postos")}
+                      onExportPNG={() => exportChartAsPNG("chart-postos", "saldo_postos")}
                     />
                     {renderStatusIcon(getDataStatus(postos, 'time'))}
                   </div>
@@ -999,23 +999,23 @@ export default function Dashboard() {
                     <defs>
                       {dataKeys.map((key, i) => (
                         <linearGradient key={`color-${key}`} id={`color-${i}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} stopOpacity={0}/>
+                          <stop offset="5%" stopColor={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} stopOpacity={0} />
                         </linearGradient>
                       ))}
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                    <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{fontSize: 10, fill: '#292929'}} dy={10} />
-                    <YAxis tick={{fontSize: 10, fill: '#292929'}} tickFormatter={formatNumber} />
-                    <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <XAxis dataKey="data" tickFormatter={formatXAxisDate} tick={{ fontSize: 10, fill: '#292929' }} dy={10} />
+                    <YAxis tick={{ fontSize: 10, fill: '#292929' }} tickFormatter={formatNumber} />
+                    <Tooltip labelFormatter={(label: any) => formatTooltipDate(label as string)} formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     {dataKeys.map((key, i) => (
-                      <Area 
-                        key={key} 
-                        type="monotone" 
-                        dataKey={key} 
-                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
-                        fillOpacity={1} 
-                        fill={`url(#color-${i})`} 
+                      <Area
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"}
+                        fillOpacity={1}
+                        fill={`url(#color-${i})`}
                       />
                     ))}
                   </AreaChart>
@@ -1031,9 +1031,9 @@ export default function Dashboard() {
                     <CardTitle className="text-lg text-slate-800">Perfil Turístico (Setores)</CardTitle>
                     <CardDescription>Formato de atuação baseado em estabelecimentos.</CardDescription>
                   </div>
-                  <ExportMenu 
-                    onExportCSV={() => exportToCSV(radarData, "perfil_turistico")} 
-                    onExportPNG={() => exportChartAsPNG("chart-perfil", "perfil_turistico")} 
+                  <ExportMenu
+                    onExportCSV={() => exportToCSV(radarData, "perfil_turistico")}
+                    onExportPNG={() => exportChartAsPNG("chart-perfil", "perfil_turistico")}
                   />
                 </div>
               </CardHeader>
@@ -1041,18 +1041,18 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
                     <PolarGrid stroke="#EAF4E9" />
-                    <PolarAngleAxis dataKey="name" tick={{fontSize: 10, fill: '#292929'}} />
-                    <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{fontSize: 10}} tickFormatter={formatNumber} />
-                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: '#292929' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fontSize: 10 }} tickFormatter={formatNumber} />
+                    <Tooltip formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
                     {dataKeys.map((key, i) => (
-                      <Radar 
-                        key={key} 
-                        name={key} 
-                        dataKey={key} 
-                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
-                        fill={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"} 
-                        fillOpacity={0.4} 
+                      <Radar
+                        key={key}
+                        name={key}
+                        dataKey={key}
+                        stroke={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"}
+                        fill={isComparing ? CITY_COLORS[i % CITY_COLORS.length] : "var(--primary)"}
+                        fillOpacity={0.4}
                       />
                     ))}
                   </RadarChart>
@@ -1069,9 +1069,9 @@ export default function Dashboard() {
                       <CardTitle className="text-lg text-slate-800">Top 10 Volume de Funcionários</CardTitle>
                       <CardDescription>As cidades com maior força de trabalho (Geral).</CardDescription>
                     </div>
-                    <ExportMenu 
-                      onExportCSV={() => exportToCSV(chartDataRanking, "ranking_cidades")} 
-                      onExportPNG={() => exportChartAsPNG("chart-ranking", "ranking_cidades")} 
+                    <ExportMenu
+                      onExportCSV={() => exportToCSV(chartDataRanking, "ranking_cidades")}
+                      onExportPNG={() => exportChartAsPNG("chart-ranking", "ranking_cidades")}
                     />
                   </div>
                 </CardHeader>
@@ -1079,9 +1079,9 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartDataRanking} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAF4E9" />
-                      <XAxis type="number" tick={{fontSize: 10, fill: '#292929'}} tickFormatter={formatNumber} />
-                      <YAxis dataKey="cidade" type="category" tick={{fontSize: 11, fill: '#292929'}} width={80} />
-                      <Tooltip cursor={{fill: '#EAF4E9'}} formatter={(value: any) => formatNumber(value as number)} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                      <XAxis type="number" tick={{ fontSize: 10, fill: '#292929' }} tickFormatter={formatNumber} />
+                      <YAxis dataKey="cidade" type="category" tick={{ fontSize: 11, fill: '#292929' }} width={80} />
+                      <Tooltip cursor={{ fill: '#EAF4E9' }} formatter={(value: any) => formatNumber(value as number)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="funcionarios" name="Funcionários" fill="var(--primary)" radius={[0, 4, 4, 0]}>
                         {chartDataRanking.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length] || "var(--primary)"} />

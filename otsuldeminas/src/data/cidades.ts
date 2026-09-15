@@ -32,8 +32,9 @@ export interface Cidade {
   tags: string[];
   descricao: string;
   populacao: string;
+  pib?: string;
   hospedagens: number;
-  leitos: string;
+  leitos?: string;
   restaurantes: number;
   atrativos: CidadeAtrativo[];
   eventos: CidadeEvento[];

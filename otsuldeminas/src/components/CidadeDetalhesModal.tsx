@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { 
   Building2, 
-  Bed, 
-  Utensils, 
+  UtensilsCrossed, 
   Users, 
+  TrendingUp,
   MapPin, 
   X,
   Sparkles,
   Info,
-  BarChart3
+  BarChart3,
+  RefreshCw,
+  Pencil
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -20,8 +22,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  PieChart,
-  Pie,
   Cell,
   Line,
   RadarChart,
@@ -29,61 +29,80 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  AreaChart,
-  Area,
   ComposedChart
 } from "recharts";
 import type { Cidade } from "@/data/cidades";
 import { fetchJSONAndFlatten } from "@/lib/api";
-import { RefreshCw } from "lucide-react";
+import { fetchDadosIBGECidade, type IBGEDataCidade, formatarPIB, formatarPopulacao } from "@/lib/ibge";
+
+interface CityRecord {
+  Município?: string;
+  Classificação?: string;
+  Estabelecimentos?: string | number;
+  Funcionarios?: string | number;
+  Ano?: string | number;
+  Mês?: string;
+  Saldo?: string | number;
+  [key: string]: unknown;
+}
+
+interface CombinedCityItem {
+  Classificação: string;
+  ClassificacaoOriginal: string;
+  Estabelecimentos: number;
+  Funcionarios: number;
+}
 
 interface CidadeDetalhesModalProps {
   cidade: Cidade | null;
   onClose: () => void;
+  onEdit?: (cidade: Cidade) => void;
 }
 
-export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
+export function CidadeDetalhesModal({ cidade, onClose, onEdit }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
-  const [realEstabelecimentos, setRealEstabelecimentos] = useState<any[]>([]);
-  const [realFuncionarios, setRealFuncionarios] = useState<any[]>([]);
-  const [realPostos, setRealPostos] = useState<any[]>([]);
-  const [rawPostosCity, setRawPostosCity] = useState<any[]>([]);
+  const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
+  const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
+  const [rawPostosCity, setRawPostosCity] = useState<CityRecord[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
-  const [combinedData, setCombinedData] = useState<any[]>([]);
+  const [combinedData, setCombinedData] = useState<CombinedCityItem[]>([]);
+  const [ibgeData, setIbgeData] = useState<IBGEDataCidade | null>(null);
   const [loadingRealData, setLoadingRealData] = useState(false);
   const [dataIsPartial, setDataIsPartial] = useState(false);
 
-  // Buscar dados reais da API quando abrir o modal de uma cidade
+  // Buscar dados reais da API e do IBGE Agregados (SIDRA) quando abrir o modal
   useEffect(() => {
     if (cidade) {
       const loadAPI = async () => {
         setLoadingRealData(true);
         try {
           const baseUrl = "/api/externo";
-          const [estData, funcData, postosData] = await Promise.all([
-            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos'),
-            fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios'),
-            fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos'),
+          const [estData, funcData, postosData, ibgeRes] = await Promise.all([
+            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos') as Promise<CityRecord[]>,
+            fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios') as Promise<CityRecord[]>,
+            fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos') as Promise<CityRecord[]>,
+            fetchDadosIBGECidade(cidade.nome),
           ]);
           
-          const estCity = estData.filter((r: any) => r['Município'] === cidade.nome);
-          const funcCity = funcData.filter((r: any) => r['Município'] === cidade.nome);
-          const postosCity = postosData.filter((r: any) => r['Município'] === cidade.nome);
+          setIbgeData(ibgeRes);
+
+          const estCity = estData.filter((r) => r['Município'] === cidade.nome);
+          const funcCity = funcData.filter((r) => r['Município'] === cidade.nome);
+          const postosCity = postosData.filter((r) => r['Município'] === cidade.nome);
           
           setRealEstabelecimentos(estCity);
-          setRealFuncionarios(funcCity);
           setRawPostosCity(postosCity);
           
           // Extrair anos disponíveis
-          const years = Array.from(new Set(postosCity.map((p: any) => String(p['Ano']))))
+          const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
             .filter(y => y && y !== 'undefined' && y !== 'null')
             .sort((a, b) => Number(b) - Number(a)) as string[];
           setAvailableYears(years);
           
           const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
           setSelectedYear(defaultYear);
-          setRealPostos(postosCity.filter((r: any) => String(r['Ano']) === defaultYear));
+          setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
 
           // Verificação de Integridade
           if (estCity.length === 0 || funcCity.length === 0 || postosCity.length === 0) {
@@ -93,10 +112,10 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           }
           
           // Mapeamento Combinado para os gráficos complexos
-          const combined = estCity.map((e: any) => {
-            const f = funcCity.find((func: any) => func['Classificação'] === e['Classificação']);
+          const combined: CombinedCityItem[] = estCity.map((e) => {
+            const f = funcCity.find((func) => func['Classificação'] === e['Classificação']);
             
-            let shortName = e['Classificação'];
+            let shortName = String(e['Classificação'] || "");
             if (shortName.includes("arte, cultura")) shortName = "Cultura e Lazer";
             else if (shortName.includes("Transporte") || shortName.includes("transporte")) shortName = "Transporte";
             else if (shortName.includes("Alojamento")) shortName = "Alojamento";
@@ -106,14 +125,14 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
             
             return {
               Classificação: shortName,
-              ClassificacaoOriginal: e['Classificação'],
+              ClassificacaoOriginal: String(e['Classificação'] || ""),
               Estabelecimentos: Number(e['Estabelecimentos'] || 0),
               Funcionarios: f ? Number(f['Funcionarios'] || 0) : 0
             };
           });
           setCombinedData(combined);
         } catch (e) {
-          console.error("Erro ao carregar API da cidade", e);
+          console.error("Erro ao carregar API da cidade e IBGE", e);
         } finally {
           setLoadingRealData(false);
         }
@@ -125,7 +144,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   // Atualizar dados de postos ao selecionar outro ano
   useEffect(() => {
     if (selectedYear && rawPostosCity.length > 0) {
-      setRealPostos(rawPostosCity.filter((r: any) => String(r['Ano']) === selectedYear));
+      setRealPostos(rawPostosCity.filter((r) => String(r['Ano']) === selectedYear));
     }
   }, [selectedYear, rawPostosCity]);
 
@@ -153,6 +172,32 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
 
   if (!cidade) return null;
 
+  // Extrair contagem real de Hospedagens e Restaurantes da API
+  const hospItem = realEstabelecimentos.find((e) => 
+    String(e['Classificação'] || "").toLowerCase().includes('hospedagem') || 
+    String(e['Classificação'] || "").toLowerCase().includes('alojamento')
+  );
+  const restItem = realEstabelecimentos.find((e) => 
+    String(e['Classificação'] || "").toLowerCase().includes('alimentação') || 
+    String(e['Classificação'] || "").toLowerCase().includes('restaurante')
+  );
+
+  const numHospedagens = hospItem 
+    ? Number(hospItem['Estabelecimentos']).toLocaleString('pt-BR') 
+    : (cidade.hospedagens ? Number(cidade.hospedagens).toLocaleString('pt-BR') : "0");
+
+  const numRestaurantes = restItem 
+    ? Number(restItem['Estabelecimentos']).toLocaleString('pt-BR') 
+    : (cidade.restaurantes ? Number(cidade.restaurantes).toLocaleString('pt-BR') : "0");
+
+  const pibExibido = ibgeData?.pibFormatado && ibgeData.pibFormatado !== "N/D" 
+    ? ibgeData.pibFormatado 
+    : (cidade.pib ? formatarPIB(cidade.pib) : "R$ —");
+
+  const popExibida = ibgeData?.populacaoFormatada && ibgeData.populacaoFormatada !== "N/D" 
+    ? ibgeData.populacaoFormatada 
+    : (cidade.populacao ? formatarPopulacao(cidade.populacao) : "—");
+
   return (
     <div 
       className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200"
@@ -162,15 +207,27 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
         className="relative w-full max-w-[90vw] xl:max-w-7xl bg-slate-50 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col border border-slate-200/80 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Botão Fechar FIXO no modal (não rola) */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/40 hover:bg-black/70 text-white rounded-full text-xs font-semibold backdrop-blur-md border border-white/20 shadow-md transition-all duration-150 cursor-pointer"
-          title="Fechar detalhes"
-        >
-          <X className="h-3.5 w-3.5" />
-          <span>Fechar</span>
-        </button>
+        {/* Botões de Ação FIXOS no modal (não rolam) */}
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(cidade)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary/90 hover:bg-primary text-white rounded-full text-xs font-semibold backdrop-blur-md border border-primary/30 shadow-md transition-all duration-150 cursor-pointer hover:scale-105 active:scale-95"
+              title={`Editar informações de ${cidade.nome}`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span>Editar</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/40 hover:bg-black/70 text-white rounded-full text-xs font-semibold backdrop-blur-md border border-white/20 shadow-md transition-all duration-150 cursor-pointer"
+            title="Fechar detalhes"
+          >
+            <X className="h-3.5 w-3.5" />
+            <span>Fechar</span>
+          </button>
+        </div>
 
         {/* CONTAINER COM SCROLL (Header + Body) */}
         <div className="w-full h-full overflow-y-auto flex flex-col bg-slate-50 relative">
@@ -202,40 +259,77 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                 </h1>
               </div>
 
-              {/* 4 Cards Subindo para o Header */}
+              {/* 4 Cards Informativos (PIB, População, Hospedagem, Restaurantes) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 xl:w-auto">
-                {/* Card 1: Hospedagem */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">Hospedagens</span>
+                
+                {/* Card 1: PIB (IBGE SIDRA Agregado 5938) */}
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-4 w-4 text-[#5BAF56] shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
+                      PIB {ibgeData?.anoPib ? `(${ibgeData.anoPib})` : ""}
+                    </span>
                   </div>
-                  <span className="text-lg sm:text-xl font-extrabold text-white">{cidade.hospedagens}</span>
+                  {loadingRealData ? (
+                    <div className="h-7 w-24 bg-white/20 rounded animate-pulse mt-0.5" />
+                  ) : (
+                    <span className="text-lg sm:text-xl font-extrabold text-white">
+                      {pibExibido}
+                    </span>
+                  )}
                 </div>
-                {/* Card 2: Leitos */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1">
-                  <div className="flex items-center gap-2">
-                    <Bed className="h-4 w-4 text-emerald-400" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">Leitos</span>
+
+                {/* Card 2: População (IBGE SIDRA Agregado 4714) */}
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
+                      População
+                    </span>
                   </div>
-                  <span className="text-lg sm:text-xl font-extrabold text-white">{cidade.leitos}</span>
+                  {loadingRealData ? (
+                    <div className="h-7 w-24 bg-white/20 rounded animate-pulse mt-0.5" />
+                  ) : (
+                    <span className="text-lg sm:text-xl font-extrabold text-white">
+                      {popExibida}
+                    </span>
+                  )}
                 </div>
-                {/* Card 3: Restaurantes */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1">
-                  <div className="flex items-center gap-2">
-                    <Utensils className="h-4 w-4 text-amber-400" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">Restaurantes</span>
+
+                {/* Card 3: Hospedagem */}
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-[#5BAF56] shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
+                      Hospedagem
+                    </span>
                   </div>
-                  <span className="text-lg sm:text-xl font-extrabold text-white">{cidade.restaurantes}</span>
+                  {loadingRealData ? (
+                    <div className="h-7 w-16 bg-white/20 rounded animate-pulse mt-0.5" />
+                  ) : (
+                    <span className="text-lg sm:text-xl font-extrabold text-white">
+                      {numHospedagens}
+                    </span>
+                  )}
                 </div>
-                {/* Card 4: População */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-blue-400" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">População</span>
+
+                {/* Card 4: Restaurantes */}
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
+                  <div className="flex items-center gap-1.5">
+                    <UtensilsCrossed className="h-4 w-4 text-accent shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
+                      Restaurantes
+                    </span>
                   </div>
-                  <span className="text-lg sm:text-xl font-extrabold text-white">{cidade.populacao}</span>
+                  {loadingRealData ? (
+                    <div className="h-7 w-16 bg-white/20 rounded animate-pulse mt-0.5" />
+                  ) : (
+                    <span className="text-lg sm:text-xl font-extrabold text-white">
+                      {numRestaurantes}
+                    </span>
+                  )}
                 </div>
+
               </div>
             </div>
           </div>
@@ -246,7 +340,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           <div className="p-4 sm:p-6 md:p-8 space-y-8">
             
             {/* SEÇÃO 1: SOBRE A CIDADE (Largura Total) */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
+            <div className="bg-site-surface rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
               <span className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 Sobre a Cidade
@@ -260,7 +354,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
               {/* Principais Atrativos */}
-              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
+              <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
                   Principais Atrativos
@@ -281,7 +375,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               </div>
 
               {/* Próximos Eventos */}
-              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4">
                   Próximos Eventos
                 </span>
@@ -343,7 +437,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 
                 {/* Radar */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative">
+                <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative">
                   <div className="mb-4">
                     <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Vocação Turística</h3>
                     <p className="text-xs text-slate-500">Distribuição de estabelecimentos por categoria</p>
@@ -368,7 +462,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                 </div>
 
                 {/* Composed Chart */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2">
+                <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Empresas vs. Empregos</h3>
@@ -401,7 +495,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                 </div>
 
                 {/* Gráfico 3: Saldo de Empregos (BarChart Divergente) - Ocupando a linha toda no XL */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-3">
+                <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-3">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">

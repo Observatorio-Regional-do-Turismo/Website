@@ -37,7 +37,15 @@ function CidadesContent() {
             break;
           } else if (response.data && Array.isArray(response.data.results)) {
             allCidades = [...allCidades, ...response.data.results];
-            nextUrl = response.data.next;
+            if (response.data.next) {
+              const nextPageUrl = new URL(response.data.next, nextUrl);
+              if (nextUrl.startsWith("https://")) {
+                nextPageUrl.protocol = "https:";
+              }
+              nextUrl = nextPageUrl.toString();
+            } else {
+              nextUrl = null;
+            }
           } else {
             break;
           }

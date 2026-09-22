@@ -2,12 +2,9 @@
 
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X, MapPin, Plus } from "lucide-react";
+import { Search, X, MapPin } from "lucide-react";
 import { CidadeCard } from "@/components/CidadeCard";
 import { CidadeDetalhesModal } from "@/components/CidadeDetalhesModal";
-
-const STORAGE_KEY = "observatorio_custom_cidades";
-import { fetchCidades } from "@/lib/cidades-api";
 import { Header } from "@/components/Header";
 import axios from "axios";
 
@@ -18,21 +15,50 @@ function CidadesContent() {
   const searchParams = useSearchParams();
   const [selectedCidade, setSelectedCidade] = useState<ApiCidade | null>(null);
 
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-
   useEffect(() => {
-    let url = process.env.NEXT_PUBLIC_API_URL
-    if(url == undefined){
-      console.error("API_URL não definida no .env");
-      return
-    }
-    axios.get<ApiPagination<ApiCidade>>(url+"/cidades")
-      .then((response) => setCidades(response.data.results))
-      .catch((error) => {
+    let isMounted = true;
+
+    async function fetchAllCidades() {
+      const url = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_CIDADES_API_BASE_URL;
+      if (!url) {
+        console.error("API_URL não definida no .env");
+        if (isMounted) setCidades(null);
+        return;
+      }
+      const cleanUrl = url.trim().replace(/\/$/, "");
+      let nextUrl: string | null = cleanUrl.endsWith("/cidades") ? `${cleanUrl}/` : `${cleanUrl}/cidades/`;
+      let allCidades: ApiCidade[] = [];
+
+      try {
+        while (nextUrl) {
+          const response = await axios.get<ApiPagination<ApiCidade> | ApiCidade[]>(nextUrl);
+          if (Array.isArray(response.data)) {
+            allCidades = [...allCidades, ...response.data];
+            break;
+          } else if (response.data && Array.isArray(response.data.results)) {
+            allCidades = [...allCidades, ...response.data.results];
+            nextUrl = response.data.next;
+          } else {
+            break;
+          }
+        }
+        if (isMounted) {
+          setCidades(allCidades);
+        }
+      } catch (error) {
         console.error("Erro ao buscar cidades:", error);
-        setCidades(null);
-      })
-  }, [])
+        if (isMounted) {
+          setCidades(null);
+        }
+      }
+    }
+
+    fetchAllCidades();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredCidades = useMemo(() => {
     if (cidades == undefined) return undefined;
@@ -46,30 +72,12 @@ function CidadesContent() {
     }
     return result;
   }, [searchTerm, cidades]);
-  
+
   const handleSelectCidade = (cidade: ApiCidade) => {
     setSelectedCidade(cidade);
     const newUrl = `/cidades?cidade=${encodeURIComponent(cidade.slug)}`;
     window.history.pushState({ path: newUrl }, "", newUrl);
   };
-
-  // useEffect(() => {
-  //   try {
-  //     const saved = localStorage.getItem(STORAGE_KEY);
-  //     if (saved) {
-  //       const parsed: ApiCidade[] = JSON.parse(saved);
-  //       if (Array.isArray(parsed) && parsed.length > 0) {
-  //         const parsedMap = new Map(parsed.map(c => [c.id, c]));
-  //         const baseAtualizadas = CIDADES.map(c => parsedMap.get(c.id) || c);
-  //         const baseIds = new Set(CIDADES.map(c => c.id));
-  //         const novas = parsed.filter(c => !baseIds.has(c.id));
-  //         setCidadesList([...novas, ...baseAtualizadas]);
-  //       }
-  //     }
-  //   } catch (e) {
-  //     console.error("Erro ao carregar cidades customizadas:", e);
-  //   }
-  // }, []);
 
   useEffect(() => {
     const cidadeParam = searchParams.get("cidade");
@@ -86,48 +94,6 @@ function CidadesContent() {
     setSelectedCidade(null);
     window.history.pushState({ path: "/cidades" }, "", "/cidades");
   };
-
-  // const handleOpenAddModal = () => {
-  //   setCidadeParaEditar(null);
-  //   setIsFormModalOpen(true);
-  // };
-
-  // const handleOpenEditModal = (cidade: ApiCidade) => {
-  //   setCidadeParaEditar(cidade);
-  //   setIsFormModalOpen(true);
-  // };
-
-  // const handleSaveCidade = (cidadeSalva: ApiCidade) => {
-  //   const isExisting = cidadesList.some(c => c.id === cidadeSalva.id);
-  //   let atualizadas: ApiCidade[];
-
-  //   if (isExisting) {
-  //     atualizadas = cidadesList.map(c => c.id === cidadeSalva.id ? cidadeSalva : c);
-  //   } else {
-  //     atualizadas = [cidadeSalva, ...cidadesList];
-  //   }
-
-  //   setCidadesList(atualizadas);
-
-  //   try {
-  //     const customOuModificadas = atualizadas.filter(c => {
-  //       const base = CIDADES.find(b => b.id === c.id);
-  //       if (!base) return true;
-  //       return JSON.stringify(base) !== JSON.stringify(c);
-  //     });
-  //     localStorage.setItem(STORAGE_KEY, JSON.stringify(customOuModificadas));
-  //   } catch (e) {
-  //     console.error("Erro ao salvar no localStorage:", e);
-  //   }
-
-  //   // Se estiver selecionada (no modal de detalhes), atualiza os dados
-  //   if (selectedCidade && selectedCidade.id === cidadeSalva.id) {
-  //     setSelectedCidade(cidadeSalva);
-  //   } else if (!isExisting) {
-  //     // Seleciona e abre a nova cidade imediatamente
-  //     handleSelectCidade(cidadeSalva);
-  //   }
-  // };
 
 
   return (
@@ -149,7 +115,7 @@ function CidadesContent() {
               className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
             />
             {
-              searchTerm && 
+              searchTerm &&
               <button
                 onClick={() => setSearchTerm("")}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
@@ -179,47 +145,47 @@ function CidadesContent() {
             <div className="flex items-center justify-center py-20">
               <span className="text-sm text-slate-500">Carregando cidades...</span>
             </div>
-          : filteredCidades === null ?
-            <div className="bg-site-surface rounded-2xl border border-slate-200 p-12 text-center my-8">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
-                <MapPin className="h-6 w-6" />
+            : filteredCidades === null ?
+              <div className="bg-site-surface rounded-2xl border border-slate-200 p-12 text-center my-8">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
+                  <MapPin className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Erro ao carregar cidades</h3>
+                <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
+                  Ocorreu um erro ao buscar a lista de cidades. Por favor, tente novamente mais tarde.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Erro ao carregar cidades</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-                Ocorreu um erro ao buscar a lista de cidades. Por favor, tente novamente mais tarde.
-              </p>
-            </div>
-          : filteredCidades.length == 0 ? 
-            <div className="bg-site-surface rounded-2xl border border-slate-200 p-12 text-center my-8">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
-                <MapPin className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Nenhuma cidade encontrada</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-                Não encontramos resultados para &quot;{searchTerm}&quot;. Verifique a ortografia ou cadastre uma nova cidade.
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Ver todas as cidades
-                </button>
-              </div>
-            </div>
-          :
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {
-                filteredCidades.map((cidade) => (
-                  <CidadeCard
-                    key={cidade.id}
-                    cidade={cidade}
-                    onSelect={handleSelectCidade}
-                  />
-                ))
-              }
-            </div>
-          
+              : filteredCidades.length == 0 ?
+                <div className="bg-site-surface rounded-2xl border border-slate-200 p-12 text-center my-8">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">Nenhuma cidade encontrada</h3>
+                  <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
+                    Não encontramos resultados para &quot;{searchTerm}&quot;. Verifique a ortografia ou cadastre uma nova cidade.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                    >
+                      Ver todas as cidades
+                    </button>
+                  </div>
+                </div>
+                :
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {
+                    filteredCidades.map((cidade) => (
+                      <CidadeCard
+                        key={cidade.id}
+                        cidade={cidade}
+                        onSelect={handleSelectCidade}
+                      />
+                    ))
+                  }
+                </div>
+
         }
       </section>
 

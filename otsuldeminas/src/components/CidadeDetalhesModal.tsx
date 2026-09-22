@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  Building2, 
-  UtensilsCrossed, 
-  Users, 
+import {
+  Building2,
+  UtensilsCrossed,
+  Users,
   TrendingUp,
-  MapPin, 
   X,
-  Sparkles,
   Info,
   BarChart3,
   RefreshCw,
-  Pencil
+  Phone,
+  Mail,
+  MapPin,
+  Globe,
+  Sparkles,
+  Calendar,
+  Compass
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -31,9 +35,8 @@ import {
   Radar,
   ComposedChart
 } from "recharts";
-import type { Cidade } from "@/data/cidades";
 import { fetchJSONAndFlatten } from "@/lib/api";
-import { fetchDadosIBGECidade, type IBGEDataCidade, formatarPIB, formatarPopulacao } from "@/lib/ibge";
+import axios from "axios";
 
 interface CityRecord {
   Município?: string;
@@ -58,6 +61,41 @@ interface CidadeDetalhesModalProps {
   onClose: () => void;
 }
 
+function formatarPopulacao(pop: number | string | null | undefined): string {
+  if (pop === null || pop === undefined || pop === "") return "—";
+  const num = Number(String(pop).replace(/[^\d]/g, ""));
+  if (isNaN(num) || num === 0) return String(pop);
+  return `${num.toLocaleString("pt-BR")} hab.`;
+}
+
+function formatarPIB(pib: number | string | null | undefined): string {
+  if (pib === null || pib === undefined || pib === "") return "—";
+  const num = Number(String(pib).replace(/[^\d.-]/g, ""));
+  if (isNaN(num) || num === 0) return "—";
+  const valorTotal = num > 10_000_000 ? num : num * 1000;
+  if (valorTotal >= 1_000_000_000) {
+    return `R$ ${(valorTotal / 1_000_000_000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bi`;
+  }
+  if (valorTotal >= 1_000_000) {
+    return `R$ ${(valorTotal / 1_000_000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Mi`;
+  }
+  return `R$ ${valorTotal.toLocaleString("pt-BR")}`;
+}
+
+function formatarDataEvento(dateStr?: string): { dia: string; mes: string; dataFormatada: string } {
+  if (!dateStr) return { dia: "—", mes: "—", dataFormatada: "Data a definir" };
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return { dia: "—", mes: "—", dataFormatada: dateStr };
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase();
+    const dataFormatada = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    return { dia, mes, dataFormatada };
+  } catch {
+    return { dia: "—", mes: "—", dataFormatada: dateStr };
+  }
+}
+
 export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
   const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
@@ -66,39 +104,41 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [combinedData, setCombinedData] = useState<CombinedCityItem[]>([]);
-  const [ibgeData, setIbgeData] = useState<IBGEDataCidade | null>(null);
   const [loadingRealData, setLoadingRealData] = useState(false);
   const [dataIsPartial, setDataIsPartial] = useState(false);
 
-  // Buscar dados reais da API e do IBGE Agregados (SIDRA) quando abrir o modal
+  // Pontos Turísticos e Eventos reais da API
+  const [pontosTuristicos, setPontosTuristicos] = useState<ApiPontoTuristico[]>([]);
+  const [eventos, setEventos] = useState<ApiEventos[]>([]);
+  const [loadingExtras, setLoadingExtras] = useState(false);
+
+  // 1. Buscar dados analíticos da API de gráficos
   useEffect(() => {
     if (cidade) {
-      const loadAPI = async () => {
+      const loadGraphs = async () => {
         setLoadingRealData(true);
         try {
-          const baseUrl = "/api/externo";
-          const [estData, funcData, postosData, ibgeRes] = await Promise.all([
-            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos`, 'estabelecimentos') as Promise<CityRecord[]>,
-            fetchJSONAndFlatten(`${baseUrl}/funcionarios`, 'funcionarios') as Promise<CityRecord[]>,
-            fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho`, 'postos') as Promise<CityRecord[]>,
-            fetchDadosIBGECidade(cidade.name),
+          const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
+          const baseUrl = rawUrl.replace(/\/$/, "");
+          const [estData, funcData, postosData] = await Promise.all([
+            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos') as Promise<CityRecord[]>,
+            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios') as Promise<CityRecord[]>,
+            fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/`, 'postos') as Promise<CityRecord[]>,
           ]);
-          
-          setIbgeData(ibgeRes);
 
           const estCity = estData.filter((r) => r['Município'] === cidade.name);
           const funcCity = funcData.filter((r) => r['Município'] === cidade.name);
           const postosCity = postosData.filter((r) => r['Município'] === cidade.name);
-          
+
           setRealEstabelecimentos(estCity);
           setRawPostosCity(postosCity);
-          
+
           // Extrair anos disponíveis
           const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
             .filter(y => y && y !== 'undefined' && y !== 'null')
             .sort((a, b) => Number(b) - Number(a)) as string[];
           setAvailableYears(years);
-          
+
           const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
           setSelectedYear(defaultYear);
           setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
@@ -109,11 +149,11 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           } else {
             setDataIsPartial(false);
           }
-          
-          // Mapeamento Combinado para os gráficos complexos
+
+          // Mapeamento Combinado para os gráficos
           const combined: CombinedCityItem[] = estCity.map((e) => {
             const f = funcCity.find((func) => func['Classificação'] === e['Classificação']);
-            
+
             let shortName = String(e['Classificação'] || "");
             if (shortName.includes("arte, cultura")) shortName = "Cultura e Lazer";
             else if (shortName.includes("Transporte") || shortName.includes("transporte")) shortName = "Transporte";
@@ -121,7 +161,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
             else if (shortName.includes("Alimentação")) shortName = "Alimentação";
             else if (shortName.includes("Agências de viagens")) shortName = "Agências";
             else if (shortName.includes("Aluguel de")) shortName = "Aluguel";
-            
+
             return {
               Classificação: shortName,
               ClassificacaoOriginal: String(e['Classificação'] || ""),
@@ -131,12 +171,59 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           });
           setCombinedData(combined);
         } catch (e) {
-          console.error("Erro ao carregar API da cidade e IBGE", e);
+          console.error("Erro ao carregar dados analíticos da cidade:", e);
         } finally {
           setLoadingRealData(false);
         }
       };
-      loadAPI();
+      loadGraphs();
+    }
+  }, [cidade]);
+
+  // 2. Buscar Pontos Turísticos e Eventos da API NEXT_PUBLIC_API_URL
+  useEffect(() => {
+    if (cidade) {
+      const loadExtras = async () => {
+        setLoadingExtras(true);
+        try {
+          const rawUrl = process.env.NEXT_PUBLIC_API_URL || "";
+          if (!rawUrl) return;
+
+          const cleanUrl = rawUrl.trim().replace(/\/$/, "");
+          const baseUrl = cleanUrl.endsWith("/cidades") ? cleanUrl.replace(/\/cidades$/, "") : cleanUrl;
+
+          const [pontosRes, eventosRes] = await Promise.all([
+            axios.get<ApiPagination<ApiPontoTuristico>>(`${baseUrl}/pontos-turisticos/`).catch(() => ({ data: { results: [] } })),
+            axios.get<ApiPagination<ApiEventos>>(`${baseUrl}/eventos/`).catch(() => ({ data: { results: [] } }))
+          ]);
+
+          const matchCidade = (itemCidade: number | ApiCidade | undefined, itemCidadeName?: string) => {
+            if (itemCidade !== undefined && itemCidade !== null) {
+              if (typeof itemCidade === 'object') {
+                if (itemCidade.id && String(itemCidade.id) === String(cidade.id)) return true;
+                if (itemCidade.slug && itemCidade.slug === cidade.slug) return true;
+              } else if (String(itemCidade) === String(cidade.id)) {
+                return true;
+              }
+            }
+            if (itemCidadeName && cidade.name && itemCidadeName.trim().toLowerCase() === cidade.name.trim().toLowerCase()) {
+              return true;
+            }
+            return false;
+          };
+
+          const pontosDaCidade = (pontosRes.data?.results || []).filter(p => matchCidade(p.cidade, p.cidade_name));
+          const eventosDaCidade = (eventosRes.data?.results || []).filter(e => matchCidade(e.cidade, e.cidade_name));
+
+          setPontosTuristicos(pontosDaCidade);
+          setEventos(eventosDaCidade);
+        } catch (err) {
+          console.error("Erro ao carregar pontos turísticos e eventos da cidade:", err);
+        } finally {
+          setLoadingExtras(false);
+        }
+      };
+      loadExtras();
     }
   }, [cidade]);
 
@@ -171,42 +258,41 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
 
   if (!cidade) return null;
 
-  // Extrair contagem real de Hospedagens e Restaurantes da API
-  const hospItem = realEstabelecimentos.find((e) => 
-    String(e['Classificação'] || "").toLowerCase().includes('hospedagem') || 
+  // Extrair contagem real de Hospedagens e Restaurantes da API da Cidade ou dos Estabelecimentos
+  const hospItem = realEstabelecimentos.find((e) =>
+    String(e['Classificação'] || "").toLowerCase().includes('hospedagem') ||
     String(e['Classificação'] || "").toLowerCase().includes('alojamento')
   );
-  const restItem = realEstabelecimentos.find((e) => 
-    String(e['Classificação'] || "").toLowerCase().includes('alimentação') || 
+  const restItem = realEstabelecimentos.find((e) =>
+    String(e['Classificação'] || "").toLowerCase().includes('alimentação') ||
     String(e['Classificação'] || "").toLowerCase().includes('restaurante')
   );
 
-  const numHospedagens = hospItem 
-    ? Number(hospItem['Estabelecimentos']).toLocaleString('pt-BR') 
-    : (cidade.hospedagens ? Number(cidade.hospedagens).toLocaleString('pt-BR') : "0");
+  const numHospedagens = (cidade.hospedagens !== null && cidade.hospedagens !== undefined)
+    ? Number(cidade.hospedagens).toLocaleString('pt-BR')
+    : (hospItem ? Number(hospItem['Estabelecimentos']).toLocaleString('pt-BR') : "—");
 
-  const numRestaurantes = restItem 
-    ? Number(restItem['Estabelecimentos']).toLocaleString('pt-BR') 
-    : (cidade.restaurantes ? Number(cidade.restaurantes).toLocaleString('pt-BR') : "0");
+  const numRestaurantes = (cidade.restaurantes !== null && cidade.restaurantes !== undefined)
+    ? Number(cidade.restaurantes).toLocaleString('pt-BR')
+    : (restItem ? Number(restItem['Estabelecimentos']).toLocaleString('pt-BR') : "—");
 
-  // const pibExibido = ibgeData?.pibFormatado && ibgeData.pibFormatado !== "N/D" 
-  //   ? ibgeData.pibFormatado 
-  //   : (cidade.pib ? formatarPIB(cidade.pib) : "R$ —");
+  const popExibida = formatarPopulacao(cidade.populacao);
+  const pibExibido = formatarPIB(cidade.pib);
 
-  const popExibida = ibgeData?.populacaoFormatada && ibgeData.populacaoFormatada !== "N/D" 
-    ? ibgeData.populacaoFormatada 
-    : (cidade.populacao ? formatarPopulacao(cidade.populacao) : "—");
+  const imagemCapa = cidade.imagens && cidade.imagens.length > 0
+    ? (cidade.imagens.find(img => img.is_cover)?.image || cidade.imagens[0].image)
+    : null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <div 
+      <div
         className="relative w-full max-w-[90vw] xl:max-w-7xl bg-slate-50 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col border border-slate-200/80 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Botões de Ação FIXOS no modal (não rolam) */}
+        {/* Botões de Ação FIXOS no modal */}
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-2">
           <button
             onClick={onClose}
@@ -218,57 +304,53 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           </button>
         </div>
 
-        {/* CONTAINER COM SCROLL (Header + Body) */}
+        {/* CONTAINER COM SCROLL */}
         <div className="w-full h-full overflow-y-auto flex flex-col bg-slate-50 relative">
-          
+
           {/* =========================================================
               1. HEADER / HERO DA CIDADE
           ========================================================= */}
           <div className="relative w-full min-h-[300px] sm:min-h-[350px] bg-slate-900 overflow-hidden flex flex-col justify-end p-6 sm:p-8 shrink-0">
             {
-              !imageError && cidade.imagens[0]?
+              !imageError && imagemCapa ?
                 <img
-                  src={cidade.imagens[0].image}
-                  alt={cidade.imagens[0].alt_text}
+                  src={imagemCapa}
+                  alt={cidade.name}
                   className="absolute inset-0 w-full h-full object-cover opacity-70"
                   onError={() => setImageError(true)}
                 />
-              : 
+                :
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-slate-900 to-slate-900 opacity-90" />
             }
 
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-transparent" />
 
-            {/* Nome e Indicadores (Hero) */}
+            {/* Nome e Indicadores */}
             <div className="relative z-10 w-full flex flex-col xl:flex-row xl:items-end justify-between gap-6">
               <div className="max-w-3xl">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md mb-2">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md mt-1 mb-2">
                   {cidade.name}
                 </h1>
               </div>
 
               {/* 4 Cards Informativos (PIB, População, Hospedagem, Restaurantes) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 xl:w-auto">
-                
-                {/* Card 1: PIB (IBGE SIDRA Agregado 5938) */}
+
+                {/* Card 1: PIB */}
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
                   <div className="flex items-center gap-1.5">
                     <TrendingUp className="h-4 w-4 text-[#5BAF56] shrink-0" />
                     <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
-                      PIB {ibgeData?.anoPib ? `(${ibgeData.anoPib})` : ""}
+                      PIB
                     </span>
                   </div>
-                  {loadingRealData ? (
-                    <div className="h-7 w-24 bg-white/20 rounded animate-pulse mt-0.5" />
-                  ) : (
-                    <span className="text-lg sm:text-xl font-extrabold text-white">
-                      {/* {pibExibido} */} Add PIB
-                    </span>
-                  )}
+                  <span className="text-lg sm:text-xl font-extrabold text-white">
+                    {pibExibido}
+                  </span>
                 </div>
 
-                {/* Card 2: População (IBGE SIDRA Agregado 4714) */}
+                {/* Card 2: População */}
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[130px]">
                   <div className="flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-primary shrink-0" />
@@ -276,13 +358,9 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                       População
                     </span>
                   </div>
-                  {loadingRealData ? (
-                    <div className="h-7 w-24 bg-white/20 rounded animate-pulse mt-0.5" />
-                  ) : (
-                    <span className="text-lg sm:text-xl font-extrabold text-white">
-                      {popExibida}
-                    </span>
-                  )}
+                  <span className="text-lg sm:text-xl font-extrabold text-white">
+                    {popExibida}
+                  </span>
                 </div>
 
                 {/* Card 3: Hospedagem */}
@@ -293,13 +371,9 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                       Hospedagem
                     </span>
                   </div>
-                  {loadingRealData ? (
-                    <div className="h-7 w-16 bg-white/20 rounded animate-pulse mt-0.5" />
-                  ) : (
-                    <span className="text-lg sm:text-xl font-extrabold text-white">
-                      {numHospedagens}
-                    </span>
-                  )}
+                  <span className="text-lg sm:text-xl font-extrabold text-white">
+                    {numHospedagens}
+                  </span>
                 </div>
 
                 {/* Card 4: Restaurantes */}
@@ -310,13 +384,9 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                       Restaurantes
                     </span>
                   </div>
-                  {loadingRealData ? (
-                    <div className="h-7 w-16 bg-white/20 rounded animate-pulse mt-0.5" />
-                  ) : (
-                    <span className="text-lg sm:text-xl font-extrabold text-white">
-                      {numRestaurantes}
-                    </span>
-                  )}
+                  <span className="text-lg sm:text-xl font-extrabold text-white">
+                    {numRestaurantes}
+                  </span>
                 </div>
 
               </div>
@@ -327,76 +397,207 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               CONTEÚDO DO PAINEL DA CIDADE
           ========================================================= */}
           <div className="p-4 sm:p-6 md:p-8 space-y-8">
-            
-            {/* SEÇÃO 1: SOBRE A CIDADE (Largura Total) */}
+
+            {/* SEÇÃO 1: SOBRE A CIDADE */}
             <div className="bg-site-surface rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
               <span className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 Sobre a Cidade
               </span>
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed text-justify max-w-4xl">
-                {cidade.description}
+                {cidade.description?.trim()
+                  ? cidade.description
+                  : "Informações detalhadas sobre o município e seus atrativos turísticos serão atualizadas em breve."}
               </p>
             </div>
 
             {/* SEÇÃO 2: PONTOS TURÍSTICOS E EVENTOS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Principais Atrativos */}
+
+              {/* Principais Atrativos / Pontos Turísticos */}
               <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  Principais Atrativos
-                </span>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Principais Atrativos Turísticos
+                  </span>
+                  {pontosTuristicos.length > 0 && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      {pontosTuristicos.length} {pontosTuristicos.length === 1 ? "atrativo" : "atrativos"}
+                    </span>
+                  )}
+                </div>
+
                 <div className="space-y-3.5 flex-1">
-                  {/* {cidade.atrativos.map((atrativo, index) => (
-                    <div key={atrativo.nome} className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors">
-                      <span className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm ${index === 0 ? "bg-accent" : index === 1 ? "bg-primary" : "bg-slate-600"}`}>
-                        {index + 1}
-                      </span>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{atrativo.nome}</h4>
-                        <span className="text-xs text-slate-500 font-medium">{atrativo.categoria}</span>
-                      </div>
+                  {loadingExtras ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-slate-400">
+                      <RefreshCw className="animate-spin text-primary h-5 w-5 mr-2" />
+                      Carregando atrativos...
                     </div>
-                  ))} */}
+                  ) : pontosTuristicos.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm flex flex-col items-center gap-2">
+                      <Compass className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <p>Nenhum ponto turístico cadastrado para este município no momento.</p>
+                    </div>
+                  ) : (
+                    pontosTuristicos.map((ponto, index) => {
+                      const img = ponto.imagens && ponto.imagens.length > 0
+                        ? (ponto.imagens.find(i => i.is_cover)?.image || ponto.imagens[0].image)
+                        : null;
+
+                      return (
+                        <div
+                          key={ponto.id || index}
+                          className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100/80 transition-colors"
+                        >
+                          {img ? (
+                            <img
+                              src={img}
+                              alt={ponto.name}
+                              className="w-full sm:w-16 h-20 sm:h-16 rounded-lg object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-full sm:w-16 h-12 sm:h-16 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                              <Compass className="h-6 w-6" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-bold text-slate-800 leading-tight">
+                              {ponto.name}
+                            </h4>
+                            {ponto.description && (
+                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                {ponto.description}
+                              </p>
+                            )}
+                            {ponto.contatos && ponto.contatos.length > 0 && ponto.contatos[0]?.address && (
+                              <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
+                                <MapPin className="h-3 w-3 text-accent shrink-0" />
+                                <span className="truncate">{ponto.contatos[0].address}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
               {/* Próximos Eventos */}
-              <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4">
-                  Próximos Eventos
-                </span>
-                <div className="space-y-3">
-                  {/* {cidade.eventos.map((evento) => {
-                    const [dia, mes] = evento.data.split(" ");
-                    return (
-                      <div key={evento.titulo} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-primary text-white flex flex-col items-center justify-center shrink-0 shadow-sm">
-                            <span className="text-sm font-black leading-none">{dia}</span>
-                            <span className="text-[10px] font-bold uppercase leading-none mt-0.5 opacity-90">{mes}</span>
+              <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Eventos e Festividades
+                  </span>
+                  {eventos.length > 0 && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                      {eventos.length} {eventos.length === 1 ? "evento" : "eventos"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3.5 flex-1">
+                  {loadingExtras ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-slate-400">
+                      <RefreshCw className="animate-spin text-primary h-5 w-5 mr-2" />
+                      Carregando eventos...
+                    </div>
+                  ) : eventos.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm flex flex-col items-center gap-2">
+                      <Calendar className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <p>Nenhum evento programado para este município no momento.</p>
+                    </div>
+                  ) : (
+                    eventos.map((evento, index) => {
+                      const dataInfo = formatarDataEvento(evento.start_date);
+                      const local = evento.contatos && evento.contatos.length > 0
+                        ? (evento.contatos[0].address || evento.contatos[0].label || evento.contatos[0].value)
+                        : cidade.name;
+
+                      return (
+                        <div
+                          key={evento.id || index}
+                          className="flex items-start sm:items-center justify-between p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100/80 transition-colors gap-3"
+                        >
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 rounded-xl bg-primary text-white flex flex-col items-center justify-center shrink-0 shadow-sm">
+                              <span className="text-sm font-black leading-none">{dataInfo.dia}</span>
+                              <span className="text-[10px] font-bold uppercase leading-none mt-0.5 opacity-90">{dataInfo.mes}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-slate-800 leading-tight truncate">
+                                {evento.name}
+                              </h4>
+                              {evento.description && (
+                                <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">
+                                  {evento.description}
+                                </p>
+                              )}
+                              <span className="text-xs text-slate-500 flex items-center gap-1 mt-1 truncate">
+                                <MapPin className="h-3 w-3 text-accent shrink-0" />
+                                <span className="truncate">{local}</span>
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-800 leading-tight">{evento.titulo}</h4>
-                            <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                              <MapPin className="h-3 w-3 text-accent" />
-                              {evento.local}
+                          {evento.start_date && (
+                            <span className="text-[10px] font-bold px-2 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary whitespace-nowrap shrink-0 hidden sm:inline-block">
+                              Programado
                             </span>
-                          </div>
+                          )}
                         </div>
-                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary whitespace-nowrap shrink-0">
-                          {evento.tipo}
-                        </span>
-                      </div>
-                    );
-                  })} */}
+                      );
+                    })
+                  )}
                 </div>
               </div>
+
             </div>
 
-            {/* SEÇÃO 3: GRÁFICOS ANALÍTICOS */}
+            {/* SEÇÃO 3: CONTATOS E ATENDIMENTO */}
+            {cidade.contatos && cidade.contatos.length > 0 && (
+              <div className="bg-site-surface rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Contatos e Atendimento Turístico
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {cidade.contatos.map((contato) => (
+                    <div
+                      key={contato.id}
+                      className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 flex flex-col justify-between gap-2"
+                    >
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          {contato.type_display || contato.label || contato.type}
+                        </span>
+                        {contato.value && (
+                          <p className="text-sm font-semibold text-primary mt-1 flex items-center gap-2">
+                            {contato.type?.toLowerCase().includes("email") ? (
+                              <Mail className="h-4 w-4" />
+                            ) : contato.type?.toLowerCase().includes("site") || contato.type?.toLowerCase().includes("website") ? (
+                              <Globe className="h-4 w-4" />
+                            ) : (
+                              <Phone className="h-4 w-4" />
+                            )}
+                            {contato.value}
+                          </p>
+                        )}
+                      </div>
+                      {contato.address && (
+                        <p className="text-xs text-slate-500 flex items-start gap-1.5 mt-2">
+                          <MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" />
+                          <span>{contato.address}</span>
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SEÇÃO 4: GRÁFICOS ANALÍTICOS */}
             <div className="pt-6 mt-6 border-t border-slate-200/60">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -408,7 +609,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                     <p className="text-xs text-slate-500">Indicadores econômicos e turísticos da cidade</p>
                   </div>
                 </div>
-                
+
                 {/* Indicador de Integridade */}
                 {dataIsPartial ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 shadow-sm self-start sm:self-auto">
@@ -424,7 +625,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                
+
                 {/* Radar */}
                 <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative">
                   <div className="mb-4">
@@ -483,7 +684,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                   </div>
                 </div>
 
-                {/* Gráfico 3: Saldo de Empregos (BarChart Divergente) - Ocupando a linha toda no XL */}
+                {/* Gráfico 3: Saldo de Empregos */}
                 <div className="bg-site-surface rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-3">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -496,7 +697,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                     </div>
                     {/* Seletor de Ano */}
                     {availableYears.length > 0 && (
-                      <select 
+                      <select
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(e.target.value)}
                         className="bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
@@ -519,26 +720,26 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={realPostos} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                          <XAxis 
-                            dataKey="Mês" 
-                            tick={{ fontSize: 11, fill: '#64748b' }} 
-                            axisLine={false} 
-                            tickLine={false} 
-                          />
-                          <YAxis 
-                            tick={{ fontSize: 11, fill: '#64748b' }} 
-                            axisLine={false} 
+                          <XAxis
+                            dataKey="Mês"
+                            tick={{ fontSize: 11, fill: '#64748b' }}
+                            axisLine={false}
                             tickLine={false}
                           />
-                          <Tooltip 
+                          <YAxis
+                            tick={{ fontSize: 11, fill: '#64748b' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
                             formatter={(val: number | string) => [`${val}`, "Saldo"]}
                             labelFormatter={(label) => `Mês: ${label}`}
                             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
-                            cursor={{fill: '#f1f5f9'}}
+                            cursor={{ fill: '#f1f5f9' }}
                           />
-                          <Bar 
-                            dataKey="Saldo" 
-                            radius={[4, 4, 4, 4]} 
+                          <Bar
+                            dataKey="Saldo"
+                            radius={[4, 4, 4, 4]}
                           >
                             {
                               realPostos.map((entry, index) => (

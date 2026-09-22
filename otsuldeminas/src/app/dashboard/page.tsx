@@ -120,11 +120,12 @@ export default function Dashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_GRAPHS_URL;
-        if(!baseUrl){
+        const rawBaseUrl = process.env.NEXT_PUBLIC_GRAPHS_URL;
+        if (!rawBaseUrl) {
           console.error("GRAPHS_URL não está definido no arquivo .env");
           return;
         }
+        const baseUrl = rawBaseUrl.trim().replace(/\/$/, "");
 
         // Se já está no cache, vai rápido
         if (globalCache['estabelecimentos'] && globalCache['funcionarios']) {

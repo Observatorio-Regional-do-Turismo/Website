@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { MapPin, Pencil } from "lucide-react";
-import type { Cidade } from "@/data/cidades";
+import { MapPin } from "lucide-react";
 
 interface CidadeCardProps {
   cidade: ApiCidade;
@@ -33,7 +32,7 @@ export function CidadeCard({ cidade, onSelect }: CidadeCardProps) {
       {/* Imagem da Cidade */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
         {
-          !imageError && cidade.imagens[0] && cidade.imagens[0].image ? 
+          !imageError && cidade.imagens[0] && cidade.imagens[0].image ?
             <img
               src={cidade.imagens[0].image}
               alt={cidade.imagens[0].alt_text}
@@ -41,7 +40,7 @@ export function CidadeCard({ cidade, onSelect }: CidadeCardProps) {
               onError={() => setImageError(true)}
               loading="lazy"
             />
-          : 
+            :
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-primary/5 to-primary/10 text-slate-400 group-hover:bg-primary/15 transition-colors">
               <MapPin className="h-8 w-8 text-primary/40 mb-1 group-hover:text-primary transition-colors" />
               <span className="text-xs font-medium text-slate-500">{cidade.name}</span>
@@ -54,7 +53,7 @@ export function CidadeCard({ cidade, onSelect }: CidadeCardProps) {
         <h3 className="font-bold text-slate-800 text-base sm:text-lg group-hover:text-primary transition-colors line-clamp-1">
           {cidade.name}
         </h3>
-        
+
         <div className="pt-1 flex items-center justify-between">
           <span className="inline-flex items-center text-sm font-medium text-primary group-hover:text-secondary gap-1 group-hover:gap-1.5 transition-all">
             Ver cidade

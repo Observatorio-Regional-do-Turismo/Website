@@ -1,15 +1,17 @@
 import axios from "axios";
 import { CIDADES, type Cidade } from "@/data/cidades";
 
-const CIDADES_API_BASE_URL = process.env.NEXT_PUBLIC_CIDADES_API_BASE_URL?.trim();
-const CIDADES_API_PATH = "/cidades";
+const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+const cleanUrl = rawBaseUrl ? rawBaseUrl.trim().replace(/\/$/, "") : undefined;
+const CIDADES_API_BASE_URL = cleanUrl?.endsWith("/cidades") ? cleanUrl.replace(/\/cidades$/, "") : cleanUrl;
+const CIDADES_API_PATH = "/cidades/";
 
 type CidadesApiResponse =
   | Cidade[]
   | {
-      data?: Cidade[];
-      cidades?: Cidade[];
-    };
+    data?: Cidade[];
+    cidades?: Cidade[];
+  };
 
 const cidadesApi = axios.create({
   baseURL: CIDADES_API_BASE_URL,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, ArrowRight } from "lucide-react";
 
 interface CidadeCardProps {
   cidade: ApiCidade;
@@ -16,6 +16,11 @@ export function CidadeCard({ cidade, onSelect }: CidadeCardProps) {
     }
   };
 
+  // Safe checks for cover image
+  const coverImage = (cidade.imagens && Array.isArray(cidade.imagens) && cidade.imagens.length > 0)
+    ? (cidade.imagens.find(img => img.is_cover)?.image || cidade.imagens[0]?.image)
+    : null;
+
   return (
     <div
       onClick={handleClick}
@@ -27,39 +32,44 @@ export function CidadeCard({ cidade, onSelect }: CidadeCardProps) {
           if (onSelect) onSelect(cidade);
         }
       }}
-      className="group bg-site-surface rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-200 flex flex-col overflow-hidden text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 relative"
+      className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-[#359830]/50 transition-all duration-300 flex flex-col overflow-hidden text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#359830]/40 relative"
     >
       {/* Imagem da Cidade */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
-        {
-          !imageError && cidade.imagens[0] && cidade.imagens[0].image ?
-            <img
-              src={cidade.imagens[0].image}
-              alt={cidade.imagens[0].alt_text}
-              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 ease-out"
-              onError={() => setImageError(true)}
-              loading="lazy"
-            />
-            :
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-primary/5 to-primary/10 text-slate-400 group-hover:bg-primary/15 transition-colors">
-              <MapPin className="h-8 w-8 text-primary/40 mb-1 group-hover:text-primary transition-colors" />
-              <span className="text-xs font-medium text-slate-500">{cidade.name}</span>
+        {!imageError && coverImage ? (
+          <img
+            src={coverImage}
+            alt={cidade.name}
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+            onError={() => setImageError(true)}
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#EAF4E9] via-white to-[#EAF4E9] text-slate-400 group-hover:bg-[#EAF4E9] transition-colors">
+            <div className="w-12 h-12 rounded-full bg-[#359830]/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+              <MapPin className="h-6 w-6 text-[#359830]" />
             </div>
-        }
+            <span className="text-xs font-semibold text-slate-600">{cidade.name}</span>
+          </div>
+        )}
+
+        {/* Gradiente sutil */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-black/10 pointer-events-none" />
+
+        {/* Nome sobreposto no rodapé da imagem */}
+        <div className="absolute bottom-3 left-3.5 right-3.5 z-10">
+          <h3 className="font-extrabold text-white text-lg sm:text-xl tracking-tight leading-snug drop-shadow-md group-hover:text-emerald-200 transition-colors line-clamp-1">
+            {cidade.name}
+          </h3>
+        </div>
       </div>
 
-      {/* Conteúdo do Card */}
-      <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 gap-3">
-        <h3 className="font-bold text-slate-800 text-base sm:text-lg group-hover:text-primary transition-colors line-clamp-1">
-          {cidade.name}
-        </h3>
-
-        <div className="pt-1 flex items-center justify-between">
-          <span className="inline-flex items-center text-sm font-medium text-primary group-hover:text-secondary gap-1 group-hover:gap-1.5 transition-all">
-            Ver cidade
-            <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-          </span>
-        </div>
+      {/* Rodapé do Card */}
+      <div className="p-3.5 sm:p-4 flex items-center justify-end bg-white border-t border-slate-100">
+        <span className="inline-flex items-center text-xs font-bold text-[#359830] group-hover:text-[#C90C0F] gap-1 transition-colors">
+          Ver detalhes
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1 text-[#C90C0F]" />
+        </span>
       </div>
     </div>
   );

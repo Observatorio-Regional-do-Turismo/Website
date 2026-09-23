@@ -158,18 +158,6 @@ export default function Dashboard() {
           fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/`, 'postos').then(d => { updateProgress(3); return d; }),
         ]);
 
-        // --- INJEÇÃO DE DADOS PARA DEMONSTRAÇÃO NA REUNIÃO ---
-        // Cidade Alfa: Totalmente ausente em Estabelecimentos e Funcionários (acionará ALERTA VERMELHO no gráfico de barras e pizza)
-        // Só injetamos em Estoque para a cidade existir na caixa de buscas.
-        estoqueData.push({ 'Município': 'Alfa (Sem Histórico)', 'Ano': '2023', 'Mês': '01', 'Estoque': '150' });
-
-        // Cidade Beta: Apenas 1 setor preenchido. Acionará ALERTA AMARELO (dados parciais) nos gráficos de Barras e Pizza
-        estData.push({ 'Município': 'Beta (Dados Parciais)', 'Classificação': 'Hospedagem', 'Estabelecimentos': '12' });
-        funcData.push({ 'Município': 'Beta (Dados Parciais)', 'Classificação': 'Hospedagem', 'Funcionarios': '320' });
-        estoqueData.push({ 'Município': 'Beta (Dados Parciais)', 'Ano': '2023', 'Mês': '01', 'Estoque': '150' });
-        estoqueData.push({ 'Município': 'Beta (Dados Parciais)', 'Ano': '2023', 'Mês': '02', 'Estoque': '155' });
-        // -----------------------------------------------------
-
         setEstabelecimentos(estData);
         setFuncionarios(funcData);
         setEstoque(estoqueData);

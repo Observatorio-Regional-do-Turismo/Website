@@ -93,6 +93,10 @@ function formatarDataEvento(dateStr?: string): { dia: string; mes: string; dataF
   }
 }
 
+function temIndicador(valor: unknown): boolean {
+  return valor !== null && valor !== undefined && String(valor).trim() !== "";
+}
+
 export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
   const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
@@ -200,7 +204,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
       const loadExtras = async () => {
         setLoadingExtras(true);
         try {
-          const rawUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_CIDADES_API_BASE_URL;
+          const rawUrl = process.env.NEXT_PUBLIC_API_URL;
           if (!rawUrl) return;
           const cleanUrl = rawUrl.trim().replace(/\/$/, "");
 
@@ -270,26 +274,11 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
 
   if (!cidade) return null;
 
-  // Extrair contagem real de Hospedagens e Restaurantes
-  const hospItem = realEstabelecimentos.find((e) =>
-    String(e['Classificação'] || "").toLowerCase().includes('hospedagem') ||
-    String(e['Classificação'] || "").toLowerCase().includes('alojamento')
-  );
-  const restItem = realEstabelecimentos.find((e) =>
-    String(e['Classificação'] || "").toLowerCase().includes('alimentação') ||
-    String(e['Classificação'] || "").toLowerCase().includes('restaurante')
-  );
-
-  const numHospedagens = (cidade.hospedagens !== null && cidade.hospedagens !== undefined)
-    ? formatarHospedagem(cidade.hospedagens)
-    : (hospItem ? Number(hospItem['Estabelecimentos']).toLocaleString('pt-BR') : "—");
-
-  const numRestaurantes = (cidade.restaurantes !== null && cidade.restaurantes !== undefined)
-    ? formatarRestaurantes(cidade.restaurantes)
-    : (restItem ? Number(restItem['Estabelecimentos']).toLocaleString('pt-BR') : "—");
-
-  const popExibida = formatarPopulacao(cidade.populacao);
-  const pibExibido = formatarPIB(cidade.pib);
+  // Indicadores vêm exclusivamente do registro retornado pela API municipal.
+  const numHospedagens = temIndicador(cidade.hospedagens) ? formatarHospedagem(cidade.hospedagens) : null;
+  const numRestaurantes = temIndicador(cidade.restaurantes) ? formatarRestaurantes(cidade.restaurantes) : null;
+  const popExibida = temIndicador(cidade.populacao) ? formatarPopulacao(cidade.populacao) : null;
+  const pibExibido = temIndicador(cidade.pib) ? formatarPIB(cidade.pib) : null;
   const idhExibido = formatarIDH(cidade.idh ?? cidade.idhm);
   const idhInfo = getIDHClass(cidade.idh ?? cidade.idhm);
   const municExibido = formatarMUNIC(cidade.munic ?? cidade.indicador_cultural_munic ?? cidade.munic_cultura);
@@ -297,6 +286,18 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   const areaExibida = formatarArea(cidade.area_territorial ?? cidade.area);
   const densidadeExibida = formatarDensidade(cidade.densidade_demografica ?? cidade.densidade);
   const escolarizacaoExibida = formatarEscolarizacao(cidade.escolarizacao ?? cidade.taxa_escolarizacao);
+  const indicadores = [
+    ...(pibExibido ? [{ label: "PIB", value: pibExibido, detail: "IBGE", icon: TrendingUp }] : []),
+    ...(popExibida ? [{ label: "População", value: popExibida, detail: "IBGE", icon: Users }] : []),
+    ...(numHospedagens ? [{ label: "Hospedagem", value: `${numHospedagens} estab.`, detail: "Estabelecimentos", icon: Building2 }] : []),
+    ...(numRestaurantes ? [{ label: "Alimentação", value: `${numRestaurantes} unid.`, detail: "Estabelecimentos", icon: UtensilsCrossed }] : []),
+    ...(temIndicador(cidade.idh ?? cidade.idhm) ? [{ label: "IDHM", value: idhExibido, detail: idhInfo.label, icon: Award }] : []),
+    ...(temIndicador(cidade.munic ?? cidade.indicador_cultural_munic ?? cidade.munic_cultura) ? [{ label: "MUNIC (Pesquisa de Informações Básicas Municipais)", value: municExibido, detail: "Indicador Cultural", icon: Sparkles }] : []),
+    ...(temIndicador(cidade.pnad ?? cidade.estatistica_pnad) ? [{ label: "PNAD - Módulo Turismo", value: pnadExibido, detail: "Demanda Turística", icon: BarChart2 }] : []),
+    ...(temIndicador(cidade.area_territorial ?? cidade.area) ? [{ label: "Tamanho do município", value: areaExibida, detail: "Extensão territorial", icon: Maximize2 }] : []),
+    ...(temIndicador(cidade.densidade_demografica ?? cidade.densidade) ? [{ label: "Densidade Demográfica", value: densidadeExibida, detail: "Concentração", icon: Layers }] : []),
+    ...(temIndicador(cidade.escolarizacao ?? cidade.taxa_escolarizacao) ? [{ label: "Escolarização", value: escolarizacaoExibida, detail: "Taxa de Ensino", icon: GraduationCap }] : []),
+  ];
 
   const imagemCapa = (cidade.imagens && Array.isArray(cidade.imagens) && cidade.imagens.length > 0)
     ? (cidade.imagens.find(img => img.is_cover)?.image || cidade.imagens[0]?.image)
@@ -356,60 +357,6 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                 </h1>
               </div>
 
-              {/* 4 Cards Informativos Principais */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 xl:w-auto">
-                {/* PIB */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[125px]">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingUp className="h-4 w-4 text-[#5BAF56] shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
-                      PIB
-                    </span>
-                  </div>
-                  <span className="text-base sm:text-lg font-extrabold text-white">
-                    {pibExibido}
-                  </span>
-                </div>
-
-                {/* População */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[125px]">
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4 text-[#C90C0F] shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
-                      População
-                    </span>
-                  </div>
-                  <span className="text-base sm:text-lg font-extrabold text-white">
-                    {popExibida}
-                  </span>
-                </div>
-
-                {/* Hospedagem */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[125px]">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-[#5BAF56] shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
-                      Hospedagem
-                    </span>
-                  </div>
-                  <span className="text-base sm:text-lg font-extrabold text-white">
-                    {numHospedagens} {numHospedagens !== "—" ? "estab." : ""}
-                  </span>
-                </div>
-
-                {/* Restaurantes */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg flex flex-col justify-center gap-1 min-w-[125px]">
-                  <div className="flex items-center gap-1.5">
-                    <UtensilsCrossed className="h-4 w-4 text-[#C90C0F] shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-medium text-white/80 uppercase tracking-wider">
-                      Alimentação
-                    </span>
-                  </div>
-                  <span className="text-base sm:text-lg font-extrabold text-white">
-                    {numRestaurantes} {numRestaurantes !== "—" ? "unid." : ""}
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -419,79 +366,28 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           <div className="p-4 sm:p-6 md:p-8 space-y-8">
 
             {/* SEÇÃO COMPLETA: INDICADORES SOCIOECONÔMICOS E CULTURAIS */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#5BAF56]/30 shadow-sm">
+            {indicadores.length > 0 && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#5BAF56]/30 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider flex items-center gap-2">
                   <Award className="h-4 w-4 text-[#359830]" />
                   Painel de Indicadores Gerais do Município
                 </span>
-                <span className="text-xs text-[#287524] font-medium">Dados Oficiais IBGE / PNAD / MUNIC</span>
+                  <span className="text-xs text-[#287524] font-medium">Dados fornecidos pela API municipal</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                {/* IDHM */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">IDHM</span>
-                    <Award className="h-3.5 w-3.5 text-[#359830]" />
+                {indicadores.map(({ label, value, detail, icon: Icon }) => (
+                  <div key={label} className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">{label}</span>
+                      <Icon className="h-3.5 w-3.5 text-[#359830]" />
+                    </div>
+                    <span className="text-base font-bold text-slate-800">{value}</span>
+                    <span className="text-[10px] text-slate-500 mt-1">{detail}</span>
                   </div>
-                  <span className="text-lg font-bold text-slate-800">{idhExibido}</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md self-start mt-1 border ${idhInfo.color}`}>
-                    {idhInfo.label}
-                  </span>
-                </div>
-
-                {/* MUNIC Cultura */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">MUNIC Cultura</span>
-                    <Sparkles className="h-3.5 w-3.5 text-[#C90C0F]" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-800 leading-snug">{municExibido}</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Gestão Cultural</span>
-                </div>
-
-                {/* PNAD */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">PNAD</span>
-                    <BarChart2 className="h-3.5 w-3.5 text-[#359830]" />
-                  </div>
-                  <span className="text-base font-bold text-slate-800">{pnadExibido}</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Ocupação / Renda</span>
-                </div>
-
-                {/* Área Territorial */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">Área</span>
-                    <Maximize2 className="h-3.5 w-3.5 text-[#C90C0F]" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-800">{areaExibida}</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Extensão territorial</span>
-                </div>
-
-                {/* Densidade Demográfica */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">Densidade</span>
-                    <Layers className="h-3.5 w-3.5 text-[#359830]" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-800">{densidadeExibida}</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Concentração</span>
-                </div>
-
-                {/* Escolarização */}
-                <div className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">Escolarização</span>
-                    <GraduationCap className="h-3.5 w-3.5 text-[#C90C0F]" />
-                  </div>
-                  <span className="text-base font-bold text-slate-800">{escolarizacaoExibida}</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Taxa de Ensino</span>
-                </div>
+                ))}
               </div>
-            </div>
+            </div>}
 
             {/* SEÇÃO 1: SOBRE A CIDADE */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
@@ -507,7 +403,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
             </div>
 
             {/* SEÇÃO 2: PONTOS TURÍSTICOS E EVENTOS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {/* Principais Atrativos / Pontos Turísticos */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
                 <div className="flex items-center justify-between mb-4">

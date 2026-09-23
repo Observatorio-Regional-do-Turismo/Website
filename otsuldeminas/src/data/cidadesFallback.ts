@@ -189,18 +189,8 @@ export function gerarCidadesFallback(): ApiCidade[] {
     const slug = gerarSlug(nome);
     const dadosEsp = DADOS_CONHECIDOS[nome];
 
-    // Algoritmo determinístico para estimativas realistas para todas as cidades da região
+    // Código sintético usado somente para identificar registros locais de fallback.
     const hash = nome.split("").reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
-    const popBase = 8000 + (hash % 45000);
-    const pibBase = Math.round((popBase * (22000 + (hash % 38000))) / 1000);
-    const idhBase = Number((0.710 + ((hash % 85) / 1000)).toFixed(3));
-    const hospBase = 5 + (hash % 35);
-    const restBase = 12 + (hash % 70);
-    const areaBase = Number((120 + (hash % 650)).toFixed(1));
-    const densBase = Number((popBase / areaBase).toFixed(1));
-    const escBase = Number((96.0 + ((hash % 35) / 10)).toFixed(1));
-    const pnadBase = `${(67.0 + ((hash % 90) / 10)).toFixed(1)}%`;
-    const municBase = hash % 3 === 0 ? "Conselho & Fundo" : hash % 3 === 1 ? "Conselho Ativo" : "Estrutura Básica";
 
     const baseCidade: ApiCidade = {
       id: index + 1,
@@ -210,16 +200,6 @@ export function gerarCidadesFallback(): ApiCidade[] {
       state_name: "Minas Gerais",
       ibge_code: `31${String(10000 + (hash % 89999))}`,
       description: `${nome} é um acolhedor município da Região Sul de Minas Gerais, rico em patrimônio histórico, cultura mineira, hospitalidade e atrativos naturais que impulsionam o turismo regional.`,
-      populacao: popBase,
-      pib: pibBase,
-      idh: idhBase,
-      hospedagens: hospBase,
-      restaurantes: restBase,
-      munic: municBase,
-      pnad: pnadBase,
-      area_territorial: areaBase,
-      densidade_demografica: densBase,
-      escolarizacao: escBase,
       imagens: [
         {
           id: index + 1,
@@ -240,9 +220,16 @@ export function gerarCidadesFallback(): ApiCidade[] {
     };
 
     if (dadosEsp) {
+      const indicadores = new Set([
+        "populacao", "pib", "pib_per_capita", "idh", "idhm", "hospedagens", "leitos", "restaurantes",
+        "munic", "indicador_cultural_munic", "munic_cultura", "pnad", "estatistica_pnad",
+        "pnad_rendimento", "pnad_ocupacao", "area_territorial", "area", "densidade_demografica",
+        "densidade", "escolarizacao", "taxa_escolarizacao",
+      ]);
+      const dadosNaoIndicadores = Object.fromEntries(Object.entries(dadosEsp).filter(([key]) => !indicadores.has(key)));
       return {
         ...baseCidade,
-        ...dadosEsp,
+        ...dadosNaoIndicadores,
       };
     }
 

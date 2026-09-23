@@ -6,13 +6,11 @@ import { Search, X, MapPin, RefreshCw, AlertCircle } from "lucide-react";
 import { CidadeCard } from "@/components/CidadeCard";
 import { CidadeDetalhesModal } from "@/components/CidadeDetalhesModal";
 import { Header } from "@/components/Header";
-import { gerarCidadesFallback } from "@/data/cidadesFallback";
 import axios, { AxiosResponse } from "axios";
 
 function CidadesContent() {
   const [cidades, setCidades] = useState<ApiCidade[] | undefined | null>(undefined);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isUsingFallback, setIsUsingFallback] = useState(false);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const [selectedCidade, setSelectedCidade] = useState<ApiCidade | null>(null);
@@ -22,13 +20,11 @@ function CidadesContent() {
 
     async function fetchAllCidades() {
       setLoading(true);
-      const url = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_CIDADES_API_BASE_URL;
+      const url = process.env.NEXT_PUBLIC_API_URL;
 
       if (!url) {
-        // Fallback automático para os 148 municípios do Sul de Minas com indicadores
         if (isMounted) {
-          setCidades(gerarCidadesFallback());
-          setIsUsingFallback(true);
+          setCidades(null);
           setLoading(false);
         }
         return;
@@ -39,15 +35,8 @@ function CidadesContent() {
       let allCidades: ApiCidade[] = [];
 
       try {
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout na requisição")), 6000)
-        );
-
         while (nextUrl) {
-          const fetchPromise = axios.get<ApiPagination<ApiCidade> | ApiCidade[]>(nextUrl);
-          const response = (await Promise.race([fetchPromise, timeoutPromise])) as AxiosResponse<
-            ApiPagination<ApiCidade> | ApiCidade[]
-          >;
+          const response: AxiosResponse<ApiPagination<ApiCidade> | ApiCidade[]> = await axios.get(nextUrl, { timeout: 15000 });
 
           if (Array.isArray(response.data)) {
             allCidades = [...allCidades, ...response.data];
@@ -72,19 +61,15 @@ function CidadesContent() {
         if (isMounted) {
           if (allCidades.length > 0) {
             setCidades(allCidades);
-            setIsUsingFallback(false);
           } else {
-            // Se a API retornou array vazio, usa a base regional
-            setCidades(gerarCidadesFallback());
-            setIsUsingFallback(true);
+            setCidades([]);
           }
           setLoading(false);
         }
       } catch (error) {
-        console.warn("Erro ao buscar cidades da API externa. Utilizando catálogo regional de fallback:", error);
+        console.warn("Erro ao buscar cidades da API externa:", error);
         if (isMounted) {
-          setCidades(gerarCidadesFallback());
-          setIsUsingFallback(true);
+          setCidades(null);
           setLoading(false);
         }
       }
@@ -177,12 +162,6 @@ function CidadesContent() {
             {filteredCidades && (
               <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                 {filteredCidades.length} {filteredCidades.length === 1 ? "município" : "municípios"}
-              </span>
-            )}
-            {isUsingFallback && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Catálogo Regional Ativo
               </span>
             )}
           </div>

@@ -105,3 +105,14 @@ declare interface ApiEventos {
   imagens?: ApiImages[];
   contatos?: ApiContacts[];
 }
+
+
+declare interface ApiIGR {
+  id: number | string;
+  name: string;
+  slug: string;
+  description?: string;
+  imagens?: ApiImages[];
+  contatos?: ApiContacts[];
+  [key: string]: unknown;
+}

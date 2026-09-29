@@ -1,5 +1,5 @@
 import axios from "axios";
-import { CIDADES, type Cidade } from "@/data/cidades";
+import { type Cidade } from "@/data/cidades";
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
 const cleanUrl = rawBaseUrl ? rawBaseUrl.trim().replace(/\/$/, "") : undefined;
@@ -28,15 +28,15 @@ function getCidadesFromResponse(response: CidadesApiResponse): Cidade[] {
 }
 
 export async function fetchCidades(): Promise<Cidade[]> {
-  if (!CIDADES_API_BASE_URL) return CIDADES;
+  if (!CIDADES_API_BASE_URL) return [];
 
   try {
     const response = await cidadesApi.get<CidadesApiResponse>(CIDADES_API_PATH);
     const cidades = getCidadesFromResponse(response.data);
 
-    return cidades.length > 0 ? cidades : CIDADES;
+    return cidades;
   } catch (error) {
-    console.warn("Não foi possível carregar as cidades da API. Usando dados mockados.", error);
-    return CIDADES;
+    console.warn("Não foi possível carregar as cidades da API.", error);
+    return [];
   }
 }

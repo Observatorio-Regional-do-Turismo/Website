@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
   Building2,
   UtensilsCrossed,
@@ -101,8 +102,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   const [imageError, setImageError] = useState(false);
   const [cidadeDetalhesApi, setCidadeDetalhesApi] = useState<ApiCidade | null>(null);
   const [estadoNomeApi, setEstadoNomeApi] = useState<string | null>(null);
-  const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
-  const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
+    const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
   const [rawPostosCity, setRawPostosCity] = useState<CityRecord[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
@@ -165,76 +165,96 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
           const baseUrl = rawUrl.replace(/\/$/, "");
           const codigoIBGE = getCodigoIBGEParaGraficos(cidade.ibge_code);
+
           const [estData, funcData, postosData] = await Promise.all([
             fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos') as Promise<CityRecord[]>,
             fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios') as Promise<CityRecord[]>,
-            codigoIBGE
-              ? fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`, 'postos') as Promise<CityRecord[]>
-              : Promise.resolve([]),
+            fetchJSONAndFlatten(codigoIBGE ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}` : `${baseUrl}/postos_de_trabalho/`, 'postos') as Promise<CityRecord[]>
           ]);
 
-          const estCity = (estData || []).filter((r) => r['Município'] === cidade.name);
-          const funcCity = (funcData || []).filter((r) => r['Município'] === cidade.name);
-          const postosCity = (postosData || []).filter((r) => r['Município'] === cidade.name);
+          const normalize = (text?: unknown) =>
+            String(text ?? '')
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase()
+              .trim();
 
-          setRealEstabelecimentos(estCity);
-          setRawPostosCity(postosCity);
+          const cityTarget = normalize(cidade.name);
 
-          // Extrair anos disponíveis
-          const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
-            .filter(y => y && y !== 'undefined' && y !== 'null')
-            .sort((a, b) => Number(b) - Number(a)) as string[];
-          setAvailableYears(years);
-
-          const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
-          setSelectedYear(defaultYear);
-          setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
-
-          // Verificação de Integridade
-          if (estCity.length === 0 || funcCity.length === 0 || postosCity.length === 0) {
-            setDataIsPartial(true);
-          } else {
-            setDataIsPartial(false);
-          }
-
-          // Montar dados combinados para Radar e Gráficos
-          const mapFunc = new Map<string, number>();
-          funcCity.forEach((f) => {
-            if (f['Classificação']) {
-              mapFunc.set(String(f['Classificação']), Number(f['Funcionarios']) || 0);
-            }
-          });
-
-          const mapShortName: Record<string, string> = {
-            "Alojamento": "Hospedagem",
-            "Alimentação": "Restaurantes",
-            "Transporte": "Transporte",
-            "Agências de viagens": "Agências",
-            "Cultura e lazer": "Cultura",
-            "Outros serviços turísticos": "Outros"
+          const matchRecordCity = (r: CityRecord) => {
+            const munKey = Object.keys(r).find(k => k.toLowerCase().includes("munic")) || "Município";
+            const rowMun = normalize(r[munKey]);
+            return rowMun === cityTarget || rowMun.includes(cityTarget) || cityTarget.includes(rowMun);
           };
 
-          const combined: CombinedCityItem[] = estCity.map((e) => {
-            const rawClass = String(e['Classificação'] || "Outros");
-            let shortClass = rawClass;
-            for (const [key, val] of Object.entries(mapShortName)) {
-              if (rawClass.toLowerCase().includes(key.toLowerCase())) {
-                shortClass = val;
-                break;
-              }
-            }
-            return {
-              Classificação: shortClass,
-              ClassificacaoOriginal: rawClass,
-              Estabelecimentos: Number(e['Estabelecimentos']) || 0,
-              Funcionarios: mapFunc.get(rawClass) || 0
-            };
-          });
+          const estCity = (estData || []).filter(matchRecordCity);
+          const funcCity = (funcData || []).filter(matchRecordCity);
+          const postosCity = (postosData || []).filter(matchRecordCity);
 
-          setCombinedData(combined);
+          if (estCity.length > 0) {
+            setRawPostosCity(postosCity);
+            const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
+              .filter(y => y && y !== 'undefined' && y !== 'null')
+              .sort((a, b) => Number(b) - Number(a)) as string[];
+            setAvailableYears(years);
+
+            const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
+            setSelectedYear(defaultYear);
+            setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
+
+            const mapFunc = new Map<string, number>();
+            funcCity.forEach((f) => {
+              const classKey = Object.keys(f).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
+              const funcKey = Object.keys(f).find(k => k.toLowerCase().includes("func")) || "Funcionarios";
+              if (f[classKey]) {
+                mapFunc.set(String(f[classKey]), Number(f[funcKey]) || 0);
+              }
+            });
+
+            const mapShortName: Record<string, string> = {
+              "Alojamento": "Hospedagem",
+              "Alimentação": "Restaurantes",
+              "Transporte": "Transporte",
+              "Agências de viagens": "Agências",
+              "Cultura e lazer": "Cultura",
+              "Outros serviços turísticos": "Outros"
+            };
+
+            const combined: CombinedCityItem[] = estCity.map((e) => {
+              const classKey = Object.keys(e).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
+              const estKey = Object.keys(e).find(k => k.toLowerCase().includes("estab")) || "Estabelecimentos";
+              const rawClass = String(e[classKey] || "Outros");
+              let shortClass = rawClass;
+              for (const [key, val] of Object.entries(mapShortName)) {
+                if (rawClass.toLowerCase().includes(key.toLowerCase())) {
+                  shortClass = val;
+                  break;
+                }
+              }
+              return {
+                Classificação: shortClass,
+                ClassificacaoOriginal: rawClass,
+                Estabelecimentos: Number(e[estKey]) || 0,
+                Funcionarios: mapFunc.get(rawClass) || 0
+              };
+            });
+
+            setCombinedData(combined);
+            setDataIsPartial(postosCity.length === 0 || funcCity.length === 0);
+          } else {
+            setCombinedData([]);
+            setRawPostosCity([]);
+            setAvailableYears([]);
+            setRealPostos([]);
+            setDataIsPartial(false);
+          }
         } catch (err) {
-          console.warn("API de gráficos não disponível para esta cidade:", err);
-          setDataIsPartial(true);
+          console.warn("API de gráficos indisponível:", err);
+          setCombinedData([]);
+          setRawPostosCity([]);
+          setAvailableYears([]);
+          setRealPostos([]);
+          setDataIsPartial(false);
         } finally {
           setLoadingRealData(false);
         }
@@ -352,7 +372,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
     ...(temIndicador(escolarizacao) ? [{ label: "Escolarização", value: escolarizacaoExibida, detail: "Taxa de Ensino", icon: GraduationCap }] : []),
   ];
 
-  const imagemCapa = (cidade.imagens && Array.isArray(cidade.imagens) && cidade.imagens.length > 0)
+  const imagemCapa = ((cidadeDetalhesApi?.imagens && cidadeDetalhesApi.imagens.length > 0 ? cidadeDetalhesApi.imagens : cidade.imagens) && Array.isArray(cidade.imagens) && (cidadeDetalhesApi?.imagens?.length || cidade.imagens?.length))
     ? (cidade.imagens.find(img => img.is_cover)?.image || cidade.imagens[0]?.image)
     : null;
 
@@ -425,7 +445,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                   <Award className="h-4 w-4 text-[#359830]" />
                   Painel de Indicadores Gerais do Município
                 </span>
-                  <span className="text-xs text-[#287524] font-medium">Dados fornecidos pela API municipal</span>
+                  <span className="text-xs text-[#287524] font-medium">Indicadores consolidados do município</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
@@ -449,9 +469,10 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                 Sobre a Cidade
               </span>
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed text-justify max-w-4xl">
-                {cidade.description?.trim()
-                  ? cidade.description
-                  : "Informações detalhadas sobre o município e seus atrativos turísticos serão atualizadas em breve."}
+                {(() => {
+                  const desc = (cidadeDetalhesApi?.description || cidade.description || "").trim();
+                  return (desc && desc !== "string") ? desc : "Informações detalhadas sobre o município e seus atrativos turísticos serão atualizadas em breve.";
+                })()}
               </p>
             </div>
 
@@ -598,14 +619,14 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
             </div>
 
             {/* SEÇÃO 3: CONTATOS E ATENDIMENTO */}
-            {cidade.contatos && Array.isArray(cidade.contatos) && cidade.contatos.length > 0 && (
+            {((cidadeDetalhesApi?.contatos && Array.isArray(cidadeDetalhesApi.contatos) && cidadeDetalhesApi.contatos.length > 0) || (cidade.contatos && Array.isArray(cidade.contatos) && cidade.contatos.length > 0)) && (
               <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
                 <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Phone className="h-4 w-4 text-[#359830]" />
                   Contatos e Atendimento Turístico
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {cidade.contatos.map((contato) => (
+                  {((cidadeDetalhesApi?.contatos && Array.isArray(cidadeDetalhesApi.contatos) && cidadeDetalhesApi.contatos.length > 0) ? cidadeDetalhesApi.contatos : (cidade.contatos || [])).map((contato) => (
                     <div
                       key={contato.id}
                       className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 flex flex-col justify-between gap-2"

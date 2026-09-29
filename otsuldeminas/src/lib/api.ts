@@ -3,9 +3,17 @@ export const globalCache: Record<string, Record<string, unknown>[]> = {};
 
 export type DataType = 'estabelecimentos' | 'funcionarios' | 'estoque' | 'postos';
 
+/** A API de gráficos espera o código IBGE sem o dígito verificador. */
+export function getCodigoIBGEParaGraficos(codigo?: string | number | null): string | null {
+  const digits = String(codigo ?? '').replace(/\D/g, '');
+  if (digits.length === 7) return digits.slice(0, 6);
+  return digits.length === 6 ? digits : null;
+}
+
 export const fetchJSONAndFlatten = async (url: string, type: DataType): Promise<Record<string, unknown>[]> => {
-  if (globalCache[type]) {
-    return globalCache[type]; // Retorna do cache instantaneamente (0ms)
+  const cacheKey = type === 'postos' && url.includes('?') ? `${type}:${url}` : type;
+  if (globalCache[cacheKey]) {
+    return globalCache[cacheKey]; // Retorna do cache instantaneamente (0ms)
   }
   
   try {
@@ -71,7 +79,7 @@ export const fetchJSONAndFlatten = async (url: string, type: DataType): Promise<
     }
     
     // Salva os dados no cache para usos futuros
-    globalCache[type] = flatData;
+    globalCache[cacheKey] = flatData;
     
     return flatData;
   } catch (e) {

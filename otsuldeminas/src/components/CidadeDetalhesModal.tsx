@@ -40,7 +40,7 @@ import {
   Radar,
   ComposedChart
 } from "recharts";
-import { fetchJSONAndFlatten } from "@/lib/api";
+import { fetchJSONAndFlatten, getCodigoIBGEParaGraficos } from "@/lib/api";
 import {
   formatarPopulacao,
   formatarPIB,
@@ -99,6 +99,8 @@ function temIndicador(valor: unknown): boolean {
 
 export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
+  const [cidadeDetalhesApi, setCidadeDetalhesApi] = useState<ApiCidade | null>(null);
+  const [estadoNomeApi, setEstadoNomeApi] = useState<string | null>(null);
   const [realEstabelecimentos, setRealEstabelecimentos] = useState<CityRecord[]>([]);
   const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
   const [rawPostosCity, setRawPostosCity] = useState<CityRecord[]>([]);
@@ -113,6 +115,47 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   const [eventos, setEventos] = useState<ApiEventos[]>([]);
   const [loadingExtras, setLoadingExtras] = useState(false);
 
+  // A resposta detalhada /cidades/{id}/ contém os indicadores dentro de "information".
+  useEffect(() => {
+    let active = true;
+    setCidadeDetalhesApi(null);
+
+    const rawUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!rawUrl) return () => { active = false; };
+
+    const baseUrl = rawUrl.trim().replace(/\/$/, "");
+    axios.get<ApiCidade>(`${baseUrl}/cidades/${encodeURIComponent(cidade.id)}/`)
+      .then((response) => {
+        if (active) setCidadeDetalhesApi(response.data);
+      })
+      .catch((error) => {
+        console.warn(`Não foi possível carregar os indicadores de ${cidade.name}:`, error);
+      });
+
+    return () => { active = false; };
+  }, [cidade.id, cidade.name]);
+
+  useEffect(() => {
+    let active = true;
+    setEstadoNomeApi(null);
+    const stateId = cidadeDetalhesApi?.state ?? cidade.state;
+    const rawUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!rawUrl || stateId === null || stateId === undefined) {
+      return () => { active = false; };
+    }
+
+    const baseUrl = rawUrl.trim().replace(/\/$/, "");
+    axios.get<ApiEstado>(`${baseUrl}/estados/${encodeURIComponent(String(stateId))}/`)
+      .then((response) => {
+        if (active) setEstadoNomeApi(response.data.name);
+      })
+      .catch((error) => {
+        console.warn(`Não foi possível carregar o estado da cidade ${cidade.name}:`, error);
+      });
+
+    return () => { active = false; };
+  }, [cidade.id, cidade.name, cidade.state, cidadeDetalhesApi?.state]);
+
   // 1. Buscar dados analíticos da API de gráficos
   useEffect(() => {
     if (cidade) {
@@ -121,10 +164,13 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
         try {
           const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
           const baseUrl = rawUrl.replace(/\/$/, "");
+          const codigoIBGE = getCodigoIBGEParaGraficos(cidade.ibge_code);
           const [estData, funcData, postosData] = await Promise.all([
             fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos') as Promise<CityRecord[]>,
             fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios') as Promise<CityRecord[]>,
-            fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/`, 'postos') as Promise<CityRecord[]>,
+            codigoIBGE
+              ? fetchJSONAndFlatten(`${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`, 'postos') as Promise<CityRecord[]>
+              : Promise.resolve([]),
           ]);
 
           const estCity = (estData || []).filter((r) => r['Município'] === cidade.name);
@@ -275,28 +321,35 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   if (!cidade) return null;
 
   // Indicadores vêm exclusivamente do registro retornado pela API municipal.
-  const numHospedagens = temIndicador(cidade.hospedagens) ? formatarHospedagem(cidade.hospedagens) : null;
-  const numRestaurantes = temIndicador(cidade.restaurantes) ? formatarRestaurantes(cidade.restaurantes) : null;
-  const popExibida = temIndicador(cidade.populacao) ? formatarPopulacao(cidade.populacao) : null;
-  const pibExibido = temIndicador(cidade.pib) ? formatarPIB(cidade.pib) : null;
-  const idhExibido = formatarIDH(cidade.idh ?? cidade.idhm);
-  const idhInfo = getIDHClass(cidade.idh ?? cidade.idhm);
-  const municExibido = formatarMUNIC(cidade.munic ?? cidade.indicador_cultural_munic ?? cidade.munic_cultura);
-  const pnadExibido = formatarPNAD(cidade.pnad ?? cidade.estatistica_pnad);
-  const areaExibida = formatarArea(cidade.area_territorial ?? cidade.area);
-  const densidadeExibida = formatarDensidade(cidade.densidade_demografica ?? cidade.densidade);
-  const escolarizacaoExibida = formatarEscolarizacao(cidade.escolarizacao ?? cidade.taxa_escolarizacao);
+  const information = cidadeDetalhesApi?.information ?? cidade.information;
+  const numHospedagens = temIndicador(information?.hospedagens) ? formatarHospedagem(information?.hospedagens) : null;
+  const numRestaurantes = temIndicador(information?.restaurantes) ? formatarRestaurantes(information?.restaurantes) : null;
+  const popExibida = temIndicador(information?.populacao) ? formatarPopulacao(information?.populacao) : null;
+  const pibExibido = temIndicador(information?.pib) ? formatarPIB(information?.pib) : null;
+  const idh = information?.idh ?? information?.idhm;
+  const idhExibido = formatarIDH(idh);
+  const idhInfo = getIDHClass(idh);
+  const munic = information?.munic ?? information?.indicador_cultural_munic ?? information?.munic_cultura;
+  const municExibido = formatarMUNIC(munic);
+  const pnad = information?.pnad ?? information?.estatistica_pnad;
+  const pnadExibido = formatarPNAD(pnad);
+  const area = information?.area_territorial ?? information?.area;
+  const areaExibida = formatarArea(area);
+  const densidade = information?.densidade_demografica ?? information?.densidade;
+  const densidadeExibida = formatarDensidade(densidade);
+  const escolarizacao = information?.escolarizacao ?? information?.taxa_escolarizacao;
+  const escolarizacaoExibida = formatarEscolarizacao(escolarizacao);
   const indicadores = [
     ...(pibExibido ? [{ label: "PIB", value: pibExibido, detail: "IBGE", icon: TrendingUp }] : []),
     ...(popExibida ? [{ label: "População", value: popExibida, detail: "IBGE", icon: Users }] : []),
     ...(numHospedagens ? [{ label: "Hospedagem", value: `${numHospedagens} estab.`, detail: "Estabelecimentos", icon: Building2 }] : []),
     ...(numRestaurantes ? [{ label: "Alimentação", value: `${numRestaurantes} unid.`, detail: "Estabelecimentos", icon: UtensilsCrossed }] : []),
-    ...(temIndicador(cidade.idh ?? cidade.idhm) ? [{ label: "IDHM", value: idhExibido, detail: idhInfo.label, icon: Award }] : []),
-    ...(temIndicador(cidade.munic ?? cidade.indicador_cultural_munic ?? cidade.munic_cultura) ? [{ label: "MUNIC (Pesquisa de Informações Básicas Municipais)", value: municExibido, detail: "Indicador Cultural", icon: Sparkles }] : []),
-    ...(temIndicador(cidade.pnad ?? cidade.estatistica_pnad) ? [{ label: "PNAD - Módulo Turismo", value: pnadExibido, detail: "Demanda Turística", icon: BarChart2 }] : []),
-    ...(temIndicador(cidade.area_territorial ?? cidade.area) ? [{ label: "Tamanho do município", value: areaExibida, detail: "Extensão territorial", icon: Maximize2 }] : []),
-    ...(temIndicador(cidade.densidade_demografica ?? cidade.densidade) ? [{ label: "Densidade Demográfica", value: densidadeExibida, detail: "Concentração", icon: Layers }] : []),
-    ...(temIndicador(cidade.escolarizacao ?? cidade.taxa_escolarizacao) ? [{ label: "Escolarização", value: escolarizacaoExibida, detail: "Taxa de Ensino", icon: GraduationCap }] : []),
+    ...(temIndicador(idh) ? [{ label: "IDHM", value: idhExibido, detail: idhInfo.label, icon: Award }] : []),
+    ...(temIndicador(munic) ? [{ label: "MUNIC (Pesquisa de Informações Básicas Municipais)", value: municExibido, detail: "Indicador Cultural", icon: Sparkles }] : []),
+    ...(temIndicador(pnad) ? [{ label: "PNAD - Módulo Turismo", value: pnadExibido, detail: "Demanda Turística", icon: BarChart2 }] : []),
+    ...(temIndicador(area) ? [{ label: "Tamanho do município", value: areaExibida, detail: "Extensão territorial", icon: Maximize2 }] : []),
+    ...(temIndicador(densidade) ? [{ label: "Densidade Demográfica", value: densidadeExibida, detail: "Concentração", icon: Layers }] : []),
+    ...(temIndicador(escolarizacao) ? [{ label: "Escolarização", value: escolarizacaoExibida, detail: "Taxa de Ensino", icon: GraduationCap }] : []),
   ];
 
   const imagemCapa = (cidade.imagens && Array.isArray(cidade.imagens) && cidade.imagens.length > 0)
@@ -350,7 +403,7 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider mb-2 border border-white/30">
                   <MapPin className="h-3.5 w-3.5 text-[#C90C0F]" />
-                  {cidade.state_name || "Sul de Minas Gerais"}
+                  {estadoNomeApi || cidade.state_name || "Sul de Minas Gerais"}
                 </div>
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md">
                   {cidade.name}
@@ -460,10 +513,10 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
                                 {ponto.description}
                               </p>
                             )}
-                            {ponto.contatos && Array.isArray(ponto.contatos) && ponto.contatos.length > 0 && ponto.contatos[0]?.address && (
+                            {ponto.contatos && Array.isArray(ponto.contatos) && ponto.contatos.length > 0 && (ponto.contatos[0]?.address || ponto.contatos[0]?.label || ponto.contatos[0]?.value) && (
                               <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
                                 <MapPin className="h-3.5 w-3.5 text-[#C90C0F] shrink-0" />
-                                <span className="truncate">{ponto.contatos[0].address}</span>
+                                <span className="truncate">{ponto.contatos[0].address || ponto.contatos[0].label || ponto.contatos[0].value}</span>
                               </span>
                             )}
                           </div>

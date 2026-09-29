@@ -221,7 +221,7 @@ export function gerarCidadesFallback(): ApiCidade[] {
 
     if (dadosEsp) {
       const indicadores = new Set([
-        "populacao", "pib", "pib_per_capita", "idh", "idhm", "hospedagens", "leitos", "restaurantes",
+        "populacao", "pib", "pib_per_capta", "pib_per_capita", "idh", "idhm", "hospedagens", "leitos", "restaurantes",
         "munic", "indicador_cultural_munic", "munic_cultura", "pnad", "estatistica_pnad",
         "pnad_rendimento", "pnad_ocupacao", "area_territorial", "area", "densidade_demografica",
         "densidade", "escolarizacao", "taxa_escolarizacao",

@@ -1,5 +1,7 @@
 declare interface ApiContacts {
   id: number;
+  object_id?: number;
+  content_type?: number;
   type: string;
   type_display?: string;
   label?: string;
@@ -12,6 +14,8 @@ declare interface ApiContacts {
 
 declare interface ApiImages {
   id: number;
+  content_type?: number;
+  object_id?: number;
   image: string;
   alt_text?: string;
   caption?: string;
@@ -19,17 +23,11 @@ declare interface ApiImages {
   is_cover?: boolean;
 }
 
-declare interface ApiCidade {
-  id: number | string;
-  name: string;
-  slug: string;
-  description?: string;
-  state?: number | string;
-  state_name?: string;
-  ibge_code?: string;
+declare interface ApiCidadeInformation {
+  id?: number;
   populacao?: number | string | null;
   pib?: number | string | null;
-  pib_per_capita?: number | string | null;
+  pib_per_capta?: number | string | null;
   idh?: number | string | null;
   idhm?: number | string | null;
   hospedagens?: number | string | null;
@@ -48,6 +46,20 @@ declare interface ApiCidade {
   densidade?: number | string | null;
   escolarizacao?: number | string | null;
   taxa_escolarizacao?: number | string | null;
+}
+
+declare interface ApiCidade {
+  id: number | string;
+  name: string;
+  slug: string;
+  description?: string;
+  ibge_code?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  state?: number | string;
+  state_name?: string;
+  igr?: number | string | null;
+  information?: ApiCidadeInformation | null;
   imagens?: ApiImages[];
   contatos?: ApiContacts[];
   [key: string]: unknown;
@@ -60,12 +72,22 @@ declare interface ApiPagination<T> {
   results: T[];
 }
 
+declare interface ApiEstado {
+  id: number | string;
+  name: string;
+  slug: string;
+  description?: string;
+  abbreviation: string;
+  imagens?: ApiImages[];
+  contatos?: ApiContacts[];
+}
+
 declare interface ApiPontoTuristico {
   id: number;
   name: string;
   slug: string;
   description?: string;
-  cidade: number | ApiCidade;
+  cidade: number | string;
   cidade_name?: string;
   imagens?: ApiImages[];
   contatos?: ApiContacts[];
@@ -76,7 +98,7 @@ declare interface ApiEventos {
   name: string;
   slug: string;
   description?: string;
-  cidade: number | ApiCidade;
+  cidade: number | string;
   cidade_name?: string;
   start_date?: string;
   end_date?: string;

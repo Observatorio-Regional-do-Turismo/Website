@@ -2,15 +2,20 @@
 
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X, Building2, RefreshCw, AlertCircle, Target, Eye, HeartHandshake, Layers } from "lucide-react";
+import { Search, X, Building2, RefreshCw, AlertCircle, Target, Eye, HeartHandshake, Layers, Newspaper } from "lucide-react";
 import { Header } from "@/components/Header";
 import { IGRCard } from "@/components/IGRCard";
 import { IGRDetalhesModal } from "@/components/IGRDetalhesModal";
+import { NoticiaCard } from "@/components/NoticiaCard";
+import { NoticiaModal } from "@/components/NoticiaModal";
+import { fetchNoticias, getNoticiasPorIGR } from "@/data/noticiasFallback";
 import axios from "axios";
 
 function SelosContent() {
   const [igrs, setIgrs] = useState<ApiIGR[] | undefined | null>(undefined);
   const [cidades, setCidades] = useState<ApiCidade[]>([]);
+  const [noticias, setNoticias] = useState<ApiNoticia[]>([]);
+  const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
@@ -22,6 +27,11 @@ function SelosContent() {
     async function fetchData() {
       setLoading(true);
       const url = process.env.NEXT_PUBLIC_API_URL;
+
+      // Buscar notícias em paralelo
+      fetchNoticias().then((noticiasData) => {
+        if (isMounted) setNoticias(noticiasData);
+      });
 
       if (!url) {
         if (isMounted) {
@@ -105,6 +115,34 @@ function SelosContent() {
     }
     return result;
   }, [searchTerm, igrs]);
+
+  // Contagem de notícias por IGR
+  const noticiasPorIGRCount = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!igrs || !noticias) return map;
+    igrs.forEach((i) => {
+      const list = getNoticiasPorIGR(i.name, noticias);
+      map.set(String(i.id || i.name), list.total);
+    });
+    return map;
+  }, [igrs, noticias]);
+
+  // Notícias das IGRs para a seção geral
+  const noticiasIGRs = useMemo(() => {
+    return noticias.filter(n => n.igr_name || n.igr);
+  }, [noticias]);
+
+  const noticiasIGRsDestaque = useMemo(() => {
+    return noticiasIGRs
+      .filter(n => n.is_featured)
+      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+  }, [noticiasIGRs]);
+
+  const noticiasIGRsComuns = useMemo(() => {
+    return noticiasIGRs
+      .filter(n => !n.is_featured)
+      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+  }, [noticiasIGRs]);
 
   const handleSelectIgr = (igr: ApiIGR) => {
     setSelectedIgr(igr);
@@ -263,7 +301,7 @@ function SelosContent() {
                 IGRs Cadastradas
               </h2>
               <p className="text-sm text-slate-500">
-                Selecione uma IGR para visualizar seus detalhes e municípios consorciados
+                Selecione uma IGR para visualizar seus detalhes, notícias e municípios consorciados
               </p>
             </div>
           </div>
@@ -311,12 +349,77 @@ function SelosContent() {
                 <IGRCard
                   key={igr.id || igr.slug || igr.name}
                   igr={igr}
+                  noticiasCount={noticiasPorIGRCount.get(String(igr.id || igr.name)) || 0}
                   onSelect={handleSelectIgr}
                 />
               ))}
             </div>
           )}
         </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO: NOTÍCIAS DAS IGRs */}
+        {/* ========================================================================= */}
+        {noticiasIGRs.length > 0 && (
+          <div className="pt-8 border-t border-slate-200 space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF4E9] text-[#1D5C1B] text-xs font-bold uppercase tracking-wider mb-2 border border-[#5BAF56]/30">
+                  <Newspaper className="h-3.5 w-3.5 text-[#359830]" />
+                  Ações Regionais & Circuitos
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
+                  Notícias das IGRs & Circuitos Turísticos
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Articulação regional, projetos integrados e conquistas do turismo nos circuitos do Sul de Minas.
+                </p>
+              </div>
+            </div>
+
+            {/* Destaques */}
+            {noticiasIGRsDestaque.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#C90C0F]" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#C90C0F]">
+                    Em Destaque
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {noticiasIGRsDestaque.map((noticia) => (
+                    <NoticiaCard
+                      key={noticia.id}
+                      noticia={noticia}
+                      onClick={setSelectedNoticia}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Notícias Comuns */}
+            {noticiasIGRsComuns.length > 0 && (
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#359830]" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#1D5C1B]">
+                    Mais Notícias das IGRs
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {noticiasIGRsComuns.map((noticia) => (
+                    <NoticiaCard
+                      key={noticia.id}
+                      noticia={noticia}
+                      onClick={setSelectedNoticia}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </section>
 
@@ -325,9 +428,16 @@ function SelosContent() {
         <IGRDetalhesModal
           igr={selectedIgr}
           cidades={cidades}
+          allNoticias={noticias}
           onClose={handleCloseModal}
         />
       )}
+
+      {/* Modal de Leitura Completa da Notícia */}
+      <NoticiaModal
+        noticia={selectedNoticia}
+        onClose={() => setSelectedNoticia(null)}
+      />
     </main>
   );
 }

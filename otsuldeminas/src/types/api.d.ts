@@ -116,3 +116,27 @@ declare interface ApiIGR {
   contatos?: ApiContacts[];
   [key: string]: unknown;
 }
+
+
+declare interface ApiNoticia {
+  id: number | string;
+  title: string;
+  slug: string;
+  summary: string;
+  content?: string;
+  published_at: string;
+  is_featured: boolean;
+  cidade?: number | string | null;
+  cidade_name?: string | null;
+  cidade_slug?: string | null;
+  igr?: number | string | null;
+  igr_name?: string | null;
+  igr_slug?: string | null;
+  category?: string | null;
+  author?: string | null;
+  image?: string | null;
+  imagens?: ApiImages[];
+  source_url?: string | null;
+  tags?: string[];
+  [key: string]: unknown;
+}

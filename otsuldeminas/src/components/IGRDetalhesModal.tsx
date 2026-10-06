@@ -10,19 +10,26 @@ import {
   Eye, 
   HeartHandshake, 
   ChevronRight, 
-  Layers
+  Layers,
+  Newspaper
 } from "lucide-react";
 import axios from "axios";
+import { fetchNoticias, getNoticiasPorIGR } from "@/data/noticiasFallback";
+import { NoticiaCard } from "@/components/NoticiaCard";
+import { NoticiaModal } from "@/components/NoticiaModal";
 
 interface IGRDetalhesModalProps {
   igr: ApiIGR | null;
   cidades?: ApiCidade[];
+  allNoticias?: ApiNoticia[];
   onClose: () => void;
 }
 
-export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModalProps) {
+export function IGRDetalhesModal({ igr, cidades = [], allNoticias, onClose }: IGRDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
   const [igrDetalhesApi, setIgrDetalhesApi] = useState<ApiIGR | null>(null);
+  const [noticiasData, setNoticiasData] = useState<{ destaque: ApiNoticia[]; comuns: ApiNoticia[]; total: number }>({ destaque: [], comuns: [], total: 0 });
+  const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -43,6 +50,22 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
 
     return () => { active = false; };
   }, [igr]);
+
+  // Carregar ou filtrar notícias da IGR
+  useEffect(() => {
+    let active = true;
+    if (!igr) return;
+
+    async function loadIgrNews() {
+      const list = allNoticias && allNoticias.length > 0 ? allNoticias : await fetchNoticias();
+      if (active && igr) {
+        const igrNews = getNoticiasPorIGR(igr.name, list);
+        setNoticiasData(igrNews);
+      }
+    }
+    loadIgrNews();
+    return () => { active = false; };
+  }, [igr, allNoticias]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,7 +116,7 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
       />
 
       {/* Container do Modal */}
-      <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
+      <div className="relative bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
         
         {/* Botão Fechar Flutuante */}
         <button
@@ -230,6 +253,77 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
             )}
           </div>
 
+          {/* SEÇÃO: NOTÍCIAS DA IGR & MUNICÍPIOS ASSOCIADOS */}
+          <div className="space-y-6 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Newspaper className="h-5 w-5 text-[#359830]" />
+                  Notícias da Região ({currentIgr.name})
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Acontecimentos, novidades turísticas e ações dos municípios integrantes
+                </p>
+              </div>
+              {noticiasData.total > 0 && (
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] border border-[#5BAF56]/30">
+                  {noticiasData.total} {noticiasData.total === 1 ? "publicação" : "publicações"}
+                </span>
+              )}
+            </div>
+
+            {noticiasData.total === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                <Newspaper className="h-7 w-7 text-slate-300 stroke-[1.5]" />
+                <p>Nenhuma notícia vinculada a esta IGR ou seus municípios no momento.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Destaques da IGR */}
+                {noticiasData.destaque.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-[#C90C0F]" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#C90C0F]">
+                        Notícias em Destaque
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {noticiasData.destaque.map((noticia) => (
+                        <NoticiaCard
+                          key={noticia.id}
+                          noticia={noticia}
+                          onClick={setSelectedNoticia}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notícias Comuns da IGR */}
+                {noticiasData.comuns.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-[#359830]" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#1D5C1B]">
+                        Todas as Notícias da Região
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {noticiasData.comuns.map((noticia) => (
+                        <NoticiaCard
+                          key={noticia.id}
+                          noticia={noticia}
+                          onClick={setSelectedNoticia}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Footer do Modal */}
@@ -244,6 +338,12 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
         </div>
 
       </div>
+
+      {/* Modal de Leitura Completa da Notícia */}
+      <NoticiaModal
+        noticia={selectedNoticia}
+        onClose={() => setSelectedNoticia(null)}
+      />
     </div>
   );
 }

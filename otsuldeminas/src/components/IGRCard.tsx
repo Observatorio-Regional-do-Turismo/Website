@@ -1,14 +1,13 @@
-"use client";
-
 import { useState } from "react";
-import { Building2, ArrowRight } from "lucide-react";
+import { Building2, ArrowRight, Newspaper } from "lucide-react";
 
 interface IGRCardProps {
   igr: ApiIGR;
+  noticiasCount?: number;
   onSelect?: (igr: ApiIGR) => void;
 }
 
-export function IGRCard({ igr, onSelect }: IGRCardProps) {
+export function IGRCard({ igr, noticiasCount = 0, onSelect }: IGRCardProps) {
   const [imageError, setImageError] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -58,6 +57,16 @@ export function IGRCard({ igr, onSelect }: IGRCardProps) {
         {/* Gradiente sutil */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/75 via-slate-900/20 to-transparent pointer-events-none" />
 
+        {/* Badge de Notícias Relacionadas no topo */}
+        {noticiasCount > 0 && (
+          <div className="absolute top-3 right-3 z-10">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 text-emerald-300 font-bold text-[10px] backdrop-blur-md border border-white/10 shadow-sm">
+              <Newspaper className="h-3 w-3 text-emerald-400" />
+              {noticiasCount} {noticiasCount === 1 ? "notícia" : "notícias"}
+            </span>
+          </div>
+        )}
+
         {/* Nome sobreposto no rodapé da imagem */}
         <div className="absolute bottom-3 left-3.5 right-3.5 z-10">
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-black/40 text-emerald-300 backdrop-blur-sm mb-1">
@@ -79,7 +88,10 @@ export function IGRCard({ igr, onSelect }: IGRCardProps) {
       )}
 
       {/* Rodapé do Card */}
-      <div className="p-3.5 sm:p-4 flex items-center justify-end bg-white border-t border-slate-100 mt-auto">
+      <div className="p-3.5 sm:p-4 flex items-center justify-between bg-white border-t border-slate-100 mt-auto">
+        <span className="text-[11px] font-semibold text-slate-400">
+          {noticiasCount > 0 ? `${noticiasCount} publ.` : "Governança"}
+        </span>
         <span className="inline-flex items-center text-xs font-bold text-[#359830] group-hover:text-[#C90C0F] gap-1 transition-colors">
           Ver detalhes
           <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1 text-[#C90C0F]" />

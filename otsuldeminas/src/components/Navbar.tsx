@@ -14,7 +14,8 @@ import {
   Building2,
   CalendarDays,
   GraduationCap,
-  Award
+  Award,
+  Newspaper
 } from "lucide-react";
 
 export function Navbar() {
@@ -25,10 +26,11 @@ export function Navbar() {
     { name: "Home", icon: HomeIcon, path: "/" },
     { name: "Visão Geral", icon: BarChart3, path: "/dashboard" },
     { name: "Cidades", icon: Building2, path: "/cidades" },
+    { name: "Selos (IGRs)", icon: Award, path: "/selos" },
+    { name: "Notícias", icon: Newspaper, path: "/noticias" },
     { name: "Mapa", icon: Map, path: "/mapa" },
     { name: "Agenda", icon: CalendarDays, path: "/agenda" },
     { name: "Cursos", icon: GraduationCap, path: "/cursos" },
-    { name: "Selos", icon: Award, path: "/selos" },
     { name: "Relatórios", icon: FileText, path: "/relatorios" },
   ];
 

@@ -22,7 +22,8 @@ import {
   BarChart2,
   Maximize2,
   Layers,
-  GraduationCap
+  GraduationCap,
+  Newspaper
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -55,6 +56,9 @@ import {
   formatarDensidade,
   formatarEscolarizacao
 } from "@/lib/formatters";
+import { fetchNoticias, getNoticiasPorCidade } from "@/data/noticiasFallback";
+import { NoticiaCard } from "@/components/NoticiaCard";
+import { NoticiaModal } from "@/components/NoticiaModal";
 import axios from "axios";
 
 interface CityRecord {
@@ -77,6 +81,7 @@ interface CombinedCityItem {
 
 interface CidadeDetalhesModalProps {
   cidade: ApiCidade;
+  allNoticias?: ApiNoticia[];
   onClose: () => void;
 }
 
@@ -98,11 +103,11 @@ function temIndicador(valor: unknown): boolean {
   return valor !== null && valor !== undefined && String(valor).trim() !== "";
 }
 
-export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProps) {
+export function CidadeDetalhesModal({ cidade, allNoticias, onClose }: CidadeDetalhesModalProps) {
   const [imageError, setImageError] = useState(false);
   const [cidadeDetalhesApi, setCidadeDetalhesApi] = useState<ApiCidade | null>(null);
   const [estadoNomeApi, setEstadoNomeApi] = useState<string | null>(null);
-    const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
+  const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
   const [rawPostosCity, setRawPostosCity] = useState<CityRecord[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
@@ -110,10 +115,28 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
   const [loadingRealData, setLoadingRealData] = useState(false);
   const [dataIsPartial, setDataIsPartial] = useState(false);
 
+  // Notícias relacionadas à cidade
+  const [noticiasData, setNoticiasData] = useState<{ destaque: ApiNoticia[]; comuns: ApiNoticia[]; total: number }>({ destaque: [], comuns: [], total: 0 });
+  const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
+
   // Pontos Turísticos e Eventos reais da API
   const [pontosTuristicos, setPontosTuristicos] = useState<ApiPontoTuristico[]>([]);
   const [eventos, setEventos] = useState<ApiEventos[]>([]);
   const [loadingExtras, setLoadingExtras] = useState(false);
+
+  // Carregar ou filtrar notícias da cidade
+  useEffect(() => {
+    let active = true;
+    async function loadCityNews() {
+      const list = allNoticias && allNoticias.length > 0 ? allNoticias : await fetchNoticias();
+      if (active) {
+        const cityNews = getNoticiasPorCidade(cidade.name, list);
+        setNoticiasData(cityNews);
+      }
+    }
+    loadCityNews();
+    return () => { active = false; };
+  }, [cidade.name, allNoticias]);
 
   // A resposta detalhada /cidades/{id}/ contém os indicadores dentro de "information".
   useEffect(() => {
@@ -476,6 +499,74 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
               </p>
             </div>
 
+            {/* SEÇÃO: NOTÍCIAS DO MUNICÍPIO */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider flex items-center gap-2">
+                  <Newspaper className="h-4 w-4 text-[#359830]" />
+                  Notícias e Atualizações de {cidade.name}
+                </span>
+                {noticiasData.total > 0 && (
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] border border-[#5BAF56]/30">
+                    {noticiasData.total} {noticiasData.total === 1 ? "publicação" : "publicações"}
+                  </span>
+                )}
+              </div>
+
+              {noticiasData.total === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-sm flex flex-col items-center gap-2">
+                  <Newspaper className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                  <p>Nenhuma notícia vinculada diretamente a este município no momento.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Notícias em Destaque */}
+                  {noticiasData.destaque.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="w-2 h-2 rounded-full bg-[#C90C0F]" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#C90C0F]">
+                          Notícias em Destaque
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {noticiasData.destaque.map((noticia) => (
+                          <NoticiaCard
+                            key={noticia.id}
+                            noticia={noticia}
+                            variant="small"
+                            onClick={setSelectedNoticia}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notícias Comuns */}
+                  {noticiasData.comuns.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="w-2 h-2 rounded-full bg-[#359830]" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#1D5C1B]">
+                          Todas as Notícias ({cidade.name})
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {noticiasData.comuns.map((noticia) => (
+                          <NoticiaCard
+                            key={noticia.id}
+                            noticia={noticia}
+                            variant="small"
+                            onClick={setSelectedNoticia}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* SEÇÃO 2: PONTOS TURÍSTICOS E EVENTOS */}
             <div className="grid grid-cols-1 gap-6">
               {/* Principais Atrativos / Pontos Turísticos */}
@@ -820,6 +911,12 @@ export function CidadeDetalhesModal({ cidade, onClose }: CidadeDetalhesModalProp
           </div>
         </div>
       </div>
+
+      {/* Modal de Leitura Completa da Notícia */}
+      <NoticiaModal
+        noticia={selectedNoticia}
+        onClose={() => setSelectedNoticia(null)}
+      />
     </div>
   );
 }

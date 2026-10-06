@@ -11,11 +11,44 @@ import { fetchNoticias, getNoticiasPorCidade } from "@/data/noticiasFallback";
 import { Header } from "@/components/Header";
 import axios, { AxiosResponse } from "axios";
 
+async function fetchAllResults<T>(url: string): Promise<T[]> {
+  const results: T[] = [];
+  let nextUrl: string | null = url;
+
+  while (nextUrl) {
+    const response: AxiosResponse<ApiPagination<T> | T[]> = await axios.get(nextUrl, { timeout: 12000 });
+    if (Array.isArray(response.data)) {
+      results.push(...response.data);
+      break;
+    }
+
+    const page = response.data as ApiPagination<T>;
+    if (!Array.isArray(page?.results)) break;
+    results.push(...page.results);
+
+    if (page.next) {
+      const nextPageUrl : URL = new URL(page.next, nextUrl);
+      if (nextUrl.startsWith("https://")) nextPageUrl.protocol = "https:";
+      nextUrl = nextPageUrl.toString();
+    } else {
+      nextUrl = null;
+    }
+  }
+
+  return results;
+}
+
 function CidadesContent() {
   const [cidades, setCidades] = useState<ApiCidade[] | undefined | null>(undefined);
+  const [estados, setEstados] = useState<ApiEstado[]>([]);
+  const [igrs, setIgrs] = useState<ApiIGR[]>([]);
   const [noticias, setNoticias] = useState<ApiNoticia[]>([]);
   const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [ibgeCode, setIbgeCode] = useState("");
+  const [estadoId, setEstadoId] = useState("");
+  const [igrId, setIgrId] = useState("");
+  const [ordering, setOrdering] = useState("name");
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const [selectedCidade, setSelectedCidade] = useState<ApiCidade | null>(null);
@@ -41,8 +74,11 @@ function CidadesContent() {
       }
 
       const cleanUrl = url.trim().replace(/\/$/, "");
+      const apiBaseUrl = cleanUrl.endsWith("/cidades") ? cleanUrl.replace(/\/cidades$/, "") : cleanUrl;
       let nextUrl: string | null = cleanUrl.endsWith("/cidades") ? `${cleanUrl}/` : `${cleanUrl}/cidades/`;
       let allCidades: ApiCidade[] = [];
+      const estadosPromise = fetchAllResults<ApiEstado>(`${apiBaseUrl}/estados/`).catch(() => []);
+      const igrsPromise = fetchAllResults<ApiIGR>(`${apiBaseUrl}/igrs/`).catch(() => []);
 
       try {
         while (nextUrl) {
@@ -69,6 +105,9 @@ function CidadesContent() {
         }
 
         if (isMounted) {
+          const [allEstados, allIgrs] = await Promise.all([estadosPromise, igrsPromise]);
+          setEstados(allEstados);
+          setIgrs(allIgrs);
           if (allCidades.length > 0) {
             setCidades(allCidades);
           } else {
@@ -102,7 +141,7 @@ function CidadesContent() {
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
 
-    let result = [...cidades].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    let result = [...cidades];
     if (searchTerm.trim()) {
       const lowerQuery = normalizeText(searchTerm.trim());
       result = result.filter(
@@ -111,9 +150,21 @@ function CidadesContent() {
           (c.state_name && normalizeText(c.state_name).includes(lowerQuery))
       );
     }
+    if (ibgeCode.trim()) {
+      result = result.filter((cidade) => String(cidade.ibge_code || "") === ibgeCode.trim());
+    }
+    if (estadoId) {
+      result = result.filter((cidade) => String(cidade.state) === estadoId);
+    }
+    if (igrId) {
+      result = result.filter((cidade) => String(cidade.igr || "") === igrId);
+    }
+    result.sort((a, b) => {
+      const comparison = a.name.localeCompare(b.name, "pt-BR");
+      return ordering === "-name" ? -comparison : comparison;
+    });
     return result;
-  }, [searchTerm, cidades]);
-
+  }, [searchTerm, ibgeCode, estadoId, igrId, ordering, cidades]);
   // Contagem de notícias por cidade
   const noticiasPorCidadeCount = useMemo(() => {
     const map = new Map<string, number>();
@@ -173,17 +224,19 @@ function CidadesContent() {
 
       {/* Barra de Busca e Filtro */}
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:max-w-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+          <div className="grid w-full flex-1 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="relative w-full">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
             <input
               type="text"
+              aria-label="Buscar cidade pelo nome"
               placeholder="Buscar cidade pelo nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
             />
             {searchTerm && (
               <button
@@ -195,8 +248,46 @@ function CidadesContent() {
               </button>
             )}
           </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={7}
+            aria-label="Código IBGE"
+            placeholder="Código IBGE"
+            value={ibgeCode}
+            onChange={(e) => setIbgeCode(e.target.value.replace(/\D/g, ""))}
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+          />
+          <select
+            aria-label="Filtrar por estado"
+            value={estadoId}
+            onChange={(e) => setEstadoId(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+          >
+            <option value="">Todos os estados</option>
+            {estados.map((estado) => <option key={estado.id} value={estado.id}>{estado.name}</option>)}
+          </select>
+          <select
+            aria-label="Filtrar por IGR"
+            value={igrId}
+            onChange={(e) => setIgrId(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+          >
+            <option value="">Todas as IGRs</option>
+            {igrs.map((igr) => <option key={igr.id} value={igr.id}>{igr.name}</option>)}
+          </select>
+          <select
+            aria-label="Ordenar municípios"
+            value={ordering}
+            onChange={(e) => setOrdering(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+          >
+            <option value="name">Nome: A-Z</option>
+            <option value="-name">Nome: Z-A</option>
+          </select>
+          </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-end">
             {filteredCidades && (
               <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                 {filteredCidades.length} {filteredCidades.length === 1 ? "município" : "municípios"}
@@ -206,11 +297,8 @@ function CidadesContent() {
         </div>
       </div>
 
-      {/* Conteúdo Principal de Cidades */}
+      
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1 space-y-12">
-        {/* ========================================================================= */}
-        {/* SEÇÃO: NOTÍCIAS RELACIONADAS AOS MUNICÍPIOS (ANTES DAS CIDADES) */}
-        {/* ========================================================================= */}
         {noticiasCidades.length > 0 && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">

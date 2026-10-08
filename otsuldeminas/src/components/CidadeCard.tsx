@@ -57,14 +57,11 @@ export function CidadeCard({ cidade, noticiasCount = 0, onSelect }: CidadeCardPr
         {/* Gradiente sutil */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-black/10 pointer-events-none" />
 
-        {/* Badge de Notícias Relacionadas no topo */}
         {noticiasCount > 0 && (
-          <div className="absolute top-3 right-3 z-10">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 text-emerald-300 font-bold text-[10px] backdrop-blur-md border border-white/10 shadow-sm">
-              <Newspaper className="h-3 w-3 text-emerald-400" />
-              {noticiasCount} {noticiasCount === 1 ? "notícia" : "notícias"}
-            </span>
-          </div>
+          <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 text-[10px] font-bold text-emerald-200 shadow-sm backdrop-blur-md">
+            <Newspaper className="h-3 w-3" />
+            {noticiasCount} {noticiasCount === 1 ? "notícia" : "notícias"}
+          </span>
         )}
 
         {/* Nome sobreposto no rodapé da imagem */}
@@ -78,7 +75,7 @@ export function CidadeCard({ cidade, noticiasCount = 0, onSelect }: CidadeCardPr
       {/* Rodapé do Card */}
       <div className="p-3.5 sm:p-4 flex items-center justify-between bg-white border-t border-slate-100">
         <span className="text-[11px] font-semibold text-slate-400">
-          {noticiasCount > 0 ? `${noticiasCount} publ.` : "Indicadores"}
+          {noticiasCount ? `${noticiasCount} ${noticiasCount === 1 ? "publicação" : "publicações"}` : "Indicadores"}
         </span>
         <span className="inline-flex items-center text-xs font-bold text-[#359830] group-hover:text-[#C90C0F] gap-1 transition-colors">
           Ver detalhes

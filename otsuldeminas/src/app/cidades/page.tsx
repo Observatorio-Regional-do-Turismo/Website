@@ -2,13 +2,13 @@
 
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X, MapPin, RefreshCw, AlertCircle, Newspaper, Sparkles } from "lucide-react";
+import { Search, X, MapPin, RefreshCw, AlertCircle } from "lucide-react";
 import { CidadeCard } from "@/components/CidadeCard";
 import { CidadeDetalhesModal } from "@/components/CidadeDetalhesModal";
-import { NoticiaCard } from "@/components/NoticiaCard";
-import { NoticiaModal } from "@/components/NoticiaModal";
-import { fetchNoticias, getNoticiasPorCidade } from "@/data/noticiasFallback";
 import { Header } from "@/components/Header";
+import { NoticiaModal } from "@/components/NoticiaModal";
+import { fetchNoticias } from "@/lib/noticias-api";
+import { getWebsiteApiBaseUrl } from "@/lib/website-api";
 import axios, { AxiosResponse } from "axios";
 
 async function fetchAllResults<T>(url: string): Promise<T[]> {
@@ -43,6 +43,8 @@ function CidadesContent() {
   const [estados, setEstados] = useState<ApiEstado[]>([]);
   const [igrs, setIgrs] = useState<ApiIGR[]>([]);
   const [noticias, setNoticias] = useState<ApiNoticia[]>([]);
+  const [noticiasLoading, setNoticiasLoading] = useState(true);
+  const [noticiasError, setNoticiasError] = useState(false);
   const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [ibgeCode, setIbgeCode] = useState("");
@@ -58,27 +60,30 @@ function CidadesContent() {
 
     async function fetchData() {
       setLoading(true);
-      const url = process.env.NEXT_PUBLIC_API_URL;
-
-      // Buscar notícias em paralelo
-      fetchNoticias().then((noticiasData) => {
-        if (isMounted) setNoticias(noticiasData);
-      });
-
-      if (!url) {
+      let apiBaseUrl: string;
+      try {
+        apiBaseUrl = getWebsiteApiBaseUrl();
+      } catch (error) {
+        console.error("Erro ao configurar a API do site:", error);
         if (isMounted) {
           setCidades(null);
           setLoading(false);
         }
         return;
       }
-
-      const cleanUrl = url.trim().replace(/\/$/, "");
-      const apiBaseUrl = cleanUrl.endsWith("/cidades") ? cleanUrl.replace(/\/cidades$/, "") : cleanUrl;
-      let nextUrl: string | null = cleanUrl.endsWith("/cidades") ? `${cleanUrl}/` : `${cleanUrl}/cidades/`;
+      let nextUrl: string | null = `${apiBaseUrl}/cidades/`;
       let allCidades: ApiCidade[] = [];
       const estadosPromise = fetchAllResults<ApiEstado>(`${apiBaseUrl}/estados/`).catch(() => []);
       const igrsPromise = fetchAllResults<ApiIGR>(`${apiBaseUrl}/igrs/`).catch(() => []);
+      fetchNoticias()
+        .then((data) => { if (isMounted) setNoticias(data); })
+        .catch((error) => {
+          console.error("Erro ao carregar notícias relacionadas às cidades:", error);
+          if (isMounted) setNoticiasError(true);
+        })
+        .finally(() => {
+          if (isMounted) setNoticiasLoading(false);
+        });
 
       try {
         while (nextUrl) {
@@ -165,34 +170,17 @@ function CidadesContent() {
     });
     return result;
   }, [searchTerm, ibgeCode, estadoId, igrId, ordering, cidades]);
-  // Contagem de notícias por cidade
+
   const noticiasPorCidadeCount = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!cidades || !noticias) return map;
-    cidades.forEach((c) => {
-      const list = getNoticiasPorCidade(c.name, noticias);
-      map.set(String(c.id || c.name), list.total);
-    });
-    return map;
-  }, [cidades, noticias]);
-
-  // Notícias relacionadas a municípios
-  const noticiasCidades = useMemo(() => {
-    return noticias.filter(n => n.cidade_name || n.cidade);
+    const counts = new Map<string, number>();
+    for (const noticia of noticias) {
+      if (noticia.cidade !== null && noticia.cidade !== undefined) {
+        const cityId = String(noticia.cidade);
+        counts.set(cityId, (counts.get(cityId) || 0) + 1);
+      }
+    }
+    return counts;
   }, [noticias]);
-
-  const noticiasCidadesDestaque = useMemo(() => {
-    return noticiasCidades
-      .filter(n => n.is_featured)
-      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
-  }, [noticiasCidades]);
-
-  const noticiasCidadesComuns = useMemo(() => {
-    return noticiasCidades
-      .filter(n => !n.is_featured)
-      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
-  }, [noticiasCidades]);
-
   const handleSelectCidade = (cidade: ApiCidade) => {
     setSelectedCidade(cidade);
     const newUrl = `/cidades?cidade=${encodeURIComponent(cidade.slug || cidade.name)}`;
@@ -299,73 +287,6 @@ function CidadesContent() {
 
       
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1 space-y-12">
-        {noticiasCidades.length > 0 && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] text-[11px] font-bold uppercase tracking-wider mb-1.5 border border-[#5BAF56]/30">
-                  <Newspaper className="h-3 w-3 text-[#359830]" />
-                  Noticiário Regional
-                </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
-                  Notícias dos Municípios
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Acontecimentos, eventos, investimentos e novidades do turismo nas cidades do Sul de Minas.
-                </p>
-              </div>
-
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
-                {noticiasCidades.length} {noticiasCidades.length === 1 ? "publicação" : "publicações"}
-              </span>
-            </div>
-
-            {/* Destaques Municipais */}
-            {noticiasCidadesDestaque.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#C90C0F]" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#C90C0F] flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5" /> Destaques
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {noticiasCidadesDestaque.map((noticia) => (
-                    <NoticiaCard
-                      key={noticia.id}
-                      noticia={noticia}
-                      variant="small"
-                      onClick={setSelectedNoticia}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Notícias Comuns dos Municípios */}
-            {noticiasCidadesComuns.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#359830]" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#1D5C1B]">
-                    Mais Notícias Municipais (Mais Recentes)
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {noticiasCidadesComuns.map((noticia) => (
-                    <NoticiaCard
-                      key={noticia.id}
-                      noticia={noticia}
-                      variant="small"
-                      onClick={setSelectedNoticia}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ========================================================================= */}
         {/* SEÇÃO: MUNICÍPIOS & INDICADORES */}
         {/* ========================================================================= */}
@@ -428,7 +349,7 @@ function CidadesContent() {
                 <CidadeCard
                   key={cidade.id || cidade.slug || cidade.name}
                   cidade={cidade}
-                  noticiasCount={noticiasPorCidadeCount.get(String(cidade.id || cidade.name)) || 0}
+                  noticiasCount={noticiasPorCidadeCount.get(String(cidade.id)) || 0}
                   onSelect={handleSelectCidade}
                 />
               ))}
@@ -442,11 +363,12 @@ function CidadesContent() {
         <CidadeDetalhesModal
           cidade={selectedCidade}
           allNoticias={noticias}
+          noticiasLoading={noticiasLoading}
+          noticiasError={noticiasError}
+          onSelectNoticia={setSelectedNoticia}
           onClose={handleCloseModal}
         />
       )}
-
-      {/* Modal de Leitura Completa da Notícia */}
       <NoticiaModal
         noticia={selectedNoticia}
         onClose={() => setSelectedNoticia(null)}

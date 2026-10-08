@@ -1,5 +1,48 @@
 import axios from "axios";
-import { type Cidade } from "@/data/cidades";
+
+interface CidadeAtrativo {
+  nome: string;
+  categoria: string;
+  nota: number;
+}
+
+interface CidadeEvento {
+  data: string;
+  titulo: string;
+  local: string;
+  tipo: string;
+}
+
+interface DadoMensalCidade {
+  mes: string;
+  visitantes: number;
+  ocupacao: number;
+}
+
+interface TipoEventoItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface Cidade {
+  id: string;
+  nome: string;
+  imagem?: string;
+  slug: string;
+  destaque?: boolean;
+  tags: string[];
+  descricao: string;
+  populacao: string;
+  pib?: string;
+  hospedagens: number;
+  leitos?: string;
+  restaurantes: number;
+  atrativos: CidadeAtrativo[];
+  eventos: CidadeEvento[];
+  dadosMensais: DadoMensalCidade[];
+  tiposEvento: TipoEventoItem[];
+}
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
 const cleanUrl = rawBaseUrl ? rawBaseUrl.trim().replace(/\/$/, "") : undefined;

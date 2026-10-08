@@ -11,9 +11,10 @@ import {
   RefreshCw 
 } from "lucide-react";
 import { Header } from "@/components/Header";
+import { NoticiaCarousel } from "@/components/NoticiaCarousel";
 import { NoticiaCard } from "@/components/NoticiaCard";
 import { NoticiaModal } from "@/components/NoticiaModal";
-import { fetchNoticias, getNoticiasDestaque } from "@/data/noticiasFallback";
+import { fetchNoticias } from "@/lib/noticias-api";
 
 function NoticiasContent() {
   const [noticias, setNoticias] = useState<ApiNoticia[] | null>(null);
@@ -21,6 +22,7 @@ function NoticiasContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("todas");
   const [selectedNoticia, setSelectedNoticia] = useState<ApiNoticia | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,9 +35,10 @@ function NoticiasContent() {
           setLoading(false);
         }
       } catch (err) {
-        console.warn("Erro ao carregar notícias:", err);
+        console.error("Erro ao carregar notícias:", err);
         if (isMounted) {
           setNoticias([]);
+          setLoadError(true);
           setLoading(false);
         }
       }
@@ -85,12 +88,11 @@ function NoticiasContent() {
       return true;
     }).sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
   }, [noticias, searchTerm, selectedCategory]);
-
-  // Notícias em destaque gerais
-  const noticiasDestaqueGerais = useMemo(() => {
-    if (!noticias) return [];
-    return getNoticiasDestaque(noticias);
-  }, [noticias]);
+  const noticiasDestaque = useMemo(
+    () => noticias?.filter((noticia) => noticia.is_featured) ?? [],
+    [noticias]
+  );
+  const hasNoticias = (noticias?.length ?? 0) > 0;
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
@@ -102,10 +104,10 @@ function NoticiasContent() {
 
       {/* Barra de Busca e Filtros Rápidos */}
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
           
           {/* Input de Busca */}
-          <div className="relative flex-1 max-w-lg">
+          <div className="relative w-full xl:flex-1">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
@@ -114,7 +116,7 @@ function NoticiasContent() {
               placeholder="Buscar notícia por título, município, IGR ou tema..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
             />
             {searchTerm && (
               <button
@@ -128,7 +130,7 @@ function NoticiasContent() {
           </div>
 
           {/* Filtros em Pílulas */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none text-xs font-semibold">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0 scrollbar-none text-xs font-semibold">
             <button
               onClick={() => setSelectedCategory("todas")}
               className={`px-3 py-1.5 rounded-full transition-all shrink-0 cursor-pointer ${
@@ -191,80 +193,81 @@ function NoticiasContent() {
       </div>
 
       {/* Conteúdo Principal */}
-      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 space-y-12">
-        
-        {loading || noticias === null ? (
+      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 space-y-10">
+        {loading ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3">
             <RefreshCw className="h-8 w-8 text-[#359830] animate-spin" />
             <span className="text-sm font-semibold text-slate-600">Carregando notícias e matérias...</span>
           </div>
-        ) : filteredNoticias.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center my-8 shadow-sm">
-            <div className="w-14 h-14 bg-[#EAF4E9] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#359830]">
-              <Newspaper className="h-7 w-7" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Nenhuma notícia encontrada</h3>
-            <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-              Não encontramos resultados correspondentes a &quot;{searchTerm}&quot; nesta categoria.
-            </p>
-            <button
-              onClick={() => { setSearchTerm(""); setSelectedCategory("todas"); }}
-              className="px-5 py-2.5 bg-[#359830] text-white text-sm font-bold rounded-xl hover:bg-[#1D5C1B] transition-colors shadow-md"
-            >
-              Ver todas as notícias
-            </button>
+        ) : loadError ? (
+          <div className="bg-amber-50 rounded-3xl border border-amber-200 p-12 text-center my-8 text-amber-900">
+            <h3 className="text-lg font-bold mb-2">Não foi possível carregar as notícias</h3>
+            <p className="text-sm">Verifique a conexão com a API e tente novamente mais tarde.</p>
           </div>
         ) : (
           <div className="space-y-10">
-            
-            {/* Seção de Destaques quando o filtro for 'todas' e não houver busca ativa */}
-            {selectedCategory === "todas" && !searchTerm && noticiasDestaqueGerais.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#C90C0F]" />
-                  <h2 className="text-lg sm:text-xl font-extrabold uppercase tracking-wider text-[#C90C0F] flex items-center gap-2">
-                    <Sparkles className="h-5 w-5" />
-                    Principais Destaques
-                  </h2>
+            {noticiasDestaque.length > 0 && (
+              <section aria-labelledby="noticias-destaque-title" className="space-y-5">
+                <div className="flex items-end justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <h2 id="noticias-destaque-title" className="flex items-center gap-2 text-lg font-extrabold uppercase tracking-wider text-[#C90C0F] sm:text-xl">
+                      <Sparkles className="h-5 w-5" />
+                      Notícias em destaque
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">Destaques recentes do Sul de Minas.</p>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {noticiasDestaqueGerais.map((noticia) => (
-                    <NoticiaCard
-                      key={noticia.id}
-                      noticia={noticia}
-                      onClick={setSelectedNoticia}
-                    />
-                  ))}
-                </div>
-              </div>
+                <NoticiaCarousel
+                  noticias={noticiasDestaque}
+                  onSelect={setSelectedNoticia}
+                  label="Notícias em destaque"
+                />
+              </section>
             )}
 
-            {/* Grid Principal com as Notícias Filtradas */}
-            <div className="space-y-4">
+            <section aria-labelledby="todas-noticias-title" className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#359830]" />
-                  <h2 className="text-lg sm:text-xl font-extrabold uppercase tracking-wider text-[#1D5C1B]">
-                    {selectedCategory === "todas" && !searchTerm ? "Todas as Publicações" : "Resultados da Busca"}
-                  </h2>
-                </div>
+                <h2 id="todas-noticias-title" className="text-lg font-extrabold uppercase tracking-wider text-[#1D5C1B] sm:text-xl">
+                  {searchTerm || selectedCategory !== "todas" ? "Resultados da busca" : "Todas as notícias"}
+                </h2>
                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                   {filteredNoticias.length} {filteredNoticias.length === 1 ? "notícia" : "notícias"}
                 </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredNoticias.map((noticia) => (
-                  <NoticiaCard
-                    key={noticia.id}
-                    noticia={noticia}
-                    onClick={setSelectedNoticia}
-                  />
-                ))}
-              </div>
-            </div>
-
+              {filteredNoticias.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredNoticias.map((noticia) => (
+                    <NoticiaCard
+                      key={noticia.id}
+                      noticia={noticia}
+                      variant="compact"
+                      onClick={setSelectedNoticia}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+                  <Newspaper className="mx-auto mb-3 h-8 w-8 text-slate-400" />
+                  <h3 className="mb-1 font-bold text-slate-800">
+                    {hasNoticias ? "Nenhuma notícia encontrada" : "Nenhuma notícia publicada"}
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    {hasNoticias
+                      ? "Tente alterar a busca ou os filtros."
+                      : "Ainda não há notícias cadastradas."}
+                  </p>
+                  {hasNoticias && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchTerm(""); setSelectedCategory("todas"); }}
+                      className="mt-4 rounded-xl bg-[#359830] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#1D5C1B]"
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
           </div>
         )}
 

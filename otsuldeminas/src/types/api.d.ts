@@ -100,6 +100,7 @@ declare interface ApiEventos {
   description?: string;
   cidade: number | string;
   cidade_name?: string;
+  cidade_slug?: string;
   start_date?: string;
   end_date?: string;
   imagens?: ApiImages[];
@@ -139,4 +140,3 @@ declare interface ApiNoticia {
   source_url?: string | null;
   [key: string]: unknown;
 }
-

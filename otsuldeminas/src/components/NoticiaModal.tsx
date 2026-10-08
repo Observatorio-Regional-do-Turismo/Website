@@ -171,9 +171,9 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
           )}
 
           {/* Corpo do Texto */}
-          <div className="prose prose-slate max-w-none text-sm sm:text-base text-slate-600 leading-relaxed space-y-4">
+          <div className="prose prose-slate max-w-none text-sm sm:text-base text-slate-600 leading-relaxed">
             {noticia.content ? (
-              <p className="text-justify whitespace-pre-line">{noticia.content}</p>
+              <div className="text-justify" dangerouslySetInnerHTML={{ __html: noticia.content }} />
             ) : (
               <p className="text-justify">{noticia.summary}</p>
             )}

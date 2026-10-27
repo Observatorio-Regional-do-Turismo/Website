@@ -1,27 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, MapPin, RefreshCw, Search, X } from "lucide-react";
+import { CalendarDays, RefreshCw, Search, X } from "lucide-react";
 import { Header } from "@/components/Header";
+import { EventoCard } from "@/components/EventoCard";
+import { EventoModal } from "@/components/EventoModal";
 import { fetchEventos } from "@/lib/eventos-api";
 
 type EventPeriod = "all" | "upcoming" | "past";
 
-function formatEventDate(value?: string) {
-  if (!value) return "Data a definir";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Data a definir";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 export default function EventosPage() {
   const [eventos, setEventos] = useState<ApiEventos[]>([]);
+  const [selectedEvento, setSelectedEvento] = useState<ApiEventos | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -86,23 +76,26 @@ export default function EventosPage() {
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
       <Header
-        imageSrc="/images/cidades-hero.jpg"
-        imageAlt="Eventos turísticos no Sul de Minas Gerais"
-        title="Eventos"
-        subtitle="Agenda turística do Sul de Minas Gerais"
-        badge="Agenda Regional"
+        imageSrc="/images/sul_de_minas_bg.jpg"
+        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
       />
 
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1">
-        <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-2xl font-extrabold text-slate-800">Eventos da região</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Consulte eventos turísticos cadastrados nos municípios do Sul de Minas.
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+              <CalendarDays className="h-3.5 w-3.5" />
+              Observatório Sul de Minas
+            </div>
+            <h1 className="text-3xl font-extrabold text-[#1D5C1B] tracking-tight">
+              Eventos & Festividades
+            </h1>
+            <p className="mt-1 text-sm text-slate-600 max-w-2xl">
+              Consulte a programação de eventos culturais, gastronômicos e turísticos nos municípios do Sul de Minas Gerais.
             </p>
           </div>
           {!loading && !loadError && (
-            <span className="self-start rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 sm:self-auto">
+            <span className="self-start rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 sm:self-auto shadow-xs">
               {filteredEventos.length} {filteredEventos.length === 1 ? "evento" : "eventos"}
             </span>
           )}
@@ -177,41 +170,23 @@ export default function EventosPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredEventos.map((evento) => {
-              const cover = evento.imagens?.find((image) => image.is_cover)?.image || evento.imagens?.[0]?.image;
-              return (
-                <article key={evento.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-                  {cover ? (
-                    <img src={cover} alt={evento.name} className="h-48 w-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="flex h-48 items-center justify-center bg-gradient-to-br from-[#EAF4E9] to-white">
-                      <CalendarDays className="h-12 w-12 text-[#359830]/50" />
-                    </div>
-                  )}
-                  <div className="space-y-3 p-5">
-                    <h3 className="text-lg font-bold leading-snug text-slate-800">{evento.name}</h3>
-                    <p className="flex items-center gap-2 text-sm font-medium text-[#1D5C1B]">
-                      <CalendarDays className="h-4 w-4 shrink-0" />
-                      <span>{formatEventDate(evento.start_date)}{evento.end_date ? ` – ${formatEventDate(evento.end_date)}` : ""}</span>
-                    </p>
-                    {evento.cidade_name && (
-                      <p className="flex items-center gap-2 text-sm text-slate-500">
-                        <MapPin className="h-4 w-4 shrink-0 text-[#C90C0F]" />
-                        {evento.cidade_name}
-                      </p>
-                    )}
-                    {evento.description && (
-                      <p className="line-clamp-4 text-sm leading-relaxed text-slate-600">
-                        {evento.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}
-                      </p>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+            {filteredEventos.map((evento) => (
+              <EventoCard
+                key={evento.id}
+                evento={evento}
+                onClick={setSelectedEvento}
+              />
+            ))}
           </div>
         )}
       </section>
+
+      {/* Modal de Detalhes do Evento */}
+      <EventoModal
+        evento={selectedEvento}
+        onClose={() => setSelectedEvento(null)}
+      />
     </main>
   );
 }
+

@@ -1,7 +1,8 @@
 import { CalendarDays } from "lucide-react";
 
-export default function CityAgendaPage({ params }: { params: { city: string } }) {
-  const cityName = decodeURIComponent(params.city);
+export default async function CityAgendaPage({ params }: { params: Promise<{ city: string }> }) {
+  const { city } = await params;
+  const cityName = decodeURIComponent(city);
   
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center px-4">

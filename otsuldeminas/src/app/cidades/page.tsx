@@ -307,9 +307,23 @@ function CidadesContent() {
           </div>
 
           {loading || filteredCidades === undefined ? (
-            <div className="flex flex-col items-center justify-center py-28 gap-3">
-              <RefreshCw className="h-8 w-8 text-primary animate-spin" />
-              <span className="text-sm font-semibold text-slate-600">Carregando dados dos municípios...</span>
+            <div className="flex flex-col items-center justify-center py-20 px-4">
+              <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm max-w-md w-full text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <RefreshCw className="h-6 w-6 text-primary animate-spin" />
+                  <span className="text-base font-bold text-slate-800">Carregando municípios...</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                  <div className="bg-primary h-2.5 rounded-full w-2/3 animate-pulse"></div>
+                </div>
+                <div className="p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-2.5 text-left">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    <span className="font-semibold block text-amber-950 mb-0.5">Primeiro carregamento:</span>
+                    Na primeira vez, a consulta pode demorar alguns segundos enquanto sincronizamos os 146 municípios da região.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : filteredCidades === null ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center my-8 shadow-sm">

@@ -6,21 +6,29 @@ export async function fetchNoticias(): Promise<ApiNoticia[]> {
   let nextUrl: string | null = `${baseUrl}/noticias/`;
   const noticias: ApiNoticia[] = [];
 
-  while (nextUrl) {
-    const response: AxiosResponse<ApiPagination<ApiNoticia> | ApiNoticia[]> =
-      await axios.get(nextUrl, { timeout: 12000 });
+  try {
+    while (nextUrl) {
+      const response: AxiosResponse<ApiPagination<ApiNoticia> | ApiNoticia[]> =
+        await axios.get(nextUrl, { timeout: 12000 });
 
-    if (Array.isArray(response.data)) {
-      noticias.push(...response.data);
-      break;
-    }
+      if (Array.isArray(response.data)) {
+        noticias.push(...response.data);
+        break;
+      }
 
-    const page = response.data as ApiPagination<ApiNoticia>;
-    if (!Array.isArray(page.results)) {
-      throw new Error("A API retornou uma resposta de notícias inválida.");
+      const page = response.data as ApiPagination<ApiNoticia>;
+      if (!Array.isArray(page.results)) {
+        throw new Error("A API retornou uma resposta de notícias inválida.");
+      }
+      noticias.push(...page.results);
+      nextUrl = page.next ? new URL(page.next, `${baseUrl}/`).toString() : null;
     }
-    noticias.push(...page.results);
-    nextUrl = page.next ? new URL(page.next, `${baseUrl}/`).toString() : null;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      console.warn("Aviso: o endpoint /backend/noticias/ ainda não está disponível no backend upstream.");
+      return [];
+    }
+    throw err;
   }
 
   return noticias.sort(

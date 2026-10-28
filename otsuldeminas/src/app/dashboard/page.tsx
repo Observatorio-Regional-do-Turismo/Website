@@ -543,6 +543,15 @@ export default function Dashboard() {
               <RefreshCw className="w-4 h-4 mr-2 animate-spin text-emerald-600" />
               {loadingMessage}
             </div>
+
+            {/* Aviso de Primeiro Carregamento */}
+            <div className="mt-5 p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-3 text-left">
+              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 leading-relaxed">
+                <span className="font-semibold block text-amber-950 mb-0.5">Primeiro carregamento:</span>
+                Na primeira vez, a consulta pode demorar alguns segundos enquanto compilamos e sincronizamos os dados de todos os municípios da região.
+              </div>
+            </div>
           </div>
         </div>
 

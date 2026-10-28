@@ -41,7 +41,7 @@ import {
   Radar,
   ComposedChart
 } from "recharts";
-import { fetchJSONAndFlatten, getCodigoIBGEParaGraficos } from "@/lib/api";
+import { fetchJSONAndFlatten, getCodigoIBGEParaGraficos, globalCache } from "@/lib/api";
 import {
   formatarPopulacao,
   formatarPIB,
@@ -114,6 +114,8 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [combinedData, setCombinedData] = useState<CombinedCityItem[]>([]);
   const [loadingRealData, setLoadingRealData] = useState(false);
+  const [progressRealData, setProgressRealData] = useState(0);
+  const [progressMessage, setProgressMessage] = useState("Conectando aos dados da cidade...");
   const [dataIsPartial, setDataIsPartial] = useState(false);
 
   // Pontos Turísticos e Eventos reais da API
@@ -178,15 +180,32 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
     if (cidade) {
       const loadGraphs = async () => {
         setLoadingRealData(true);
+        const hasCache = Boolean(globalCache['estabelecimentos'] && globalCache['funcionarios']);
+        setProgressRealData(hasCache ? 60 : 15);
+        setProgressMessage(hasCache ? "Carregando dados em cache..." : "Buscando estabelecimentos (1/3)...");
         try {
           const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
           const baseUrl = rawUrl.replace(/\/$/, "");
           const codigoIBGE = getCodigoIBGEParaGraficos(cidade.ibge_code);
 
+          let completed = 0;
+          const total = 3;
+          const msgs = [
+            "Processando funcionários (2/3)...",
+            "Mapeando postos de trabalho da cidade (3/3)...",
+            "Calculando indicadores do município..."
+          ];
+
+          const updateProgress = (index: number) => {
+            completed++;
+            setProgressRealData(Math.min(95, Math.floor((completed / total) * 100)));
+            setProgressMessage(msgs[index] || "Finalizando gráficos...");
+          };
+
           const [estData, funcData, postosData] = await Promise.all([
-            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos') as Promise<CityRecord[]>,
-            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios') as Promise<CityRecord[]>,
-            fetchJSONAndFlatten(codigoIBGE ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}` : `${baseUrl}/postos_de_trabalho/`, 'postos') as Promise<CityRecord[]>
+            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos').then(d => { updateProgress(0); return d as CityRecord[]; }),
+            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios').then(d => { updateProgress(1); return d as CityRecord[]; }),
+            fetchJSONAndFlatten(codigoIBGE ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}` : `${baseUrl}/postos_de_trabalho/`, 'postos').then(d => { updateProgress(2); return d as CityRecord[]; })
           ]);
 
           const normalize = (text?: unknown) =>
@@ -273,6 +292,7 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
           setRealPostos([]);
           setDataIsPartial(false);
         } finally {
+          setProgressRealData(100);
           setLoadingRealData(false);
         }
       };
@@ -733,7 +753,12 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 </div>
 
                 {/* Indicador de Integridade */}
-                {dataIsPartial ? (
+                {loadingRealData ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-sm self-start sm:self-auto">
+                    <RefreshCw className="w-3.5 h-3.5 text-[#359830] animate-spin" />
+                    <span className="text-[11px] font-bold tracking-wide uppercase">Carregando dados...</span>
+                  </div>
+                ) : dataIsPartial ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-[#C90C0F] border border-[#C90C0F]/20 shadow-sm self-start sm:self-auto">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#C90C0F] animate-pulse" />
                     <span className="text-[11px] font-bold tracking-wide uppercase">Dados Parciais</span>
@@ -745,6 +770,40 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                   </div>
                 )}
               </div>
+
+              {/* Bloco de Progresso e Aviso quando os dados estiverem carregando */}
+              {loadingRealData && (
+                <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm mb-6">
+                  <div className="max-w-md mx-auto">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-[#359830] animate-spin" />
+                        {progressMessage}
+                      </span>
+                      <span className="text-xs font-bold text-[#1D5C1B] bg-[#EAF4E9] px-2.5 py-1 rounded-full border border-[#5BAF56]/30">
+                        {progressRealData}%
+                      </span>
+                    </div>
+
+                    {/* Barra de Progresso */}
+                    <div className="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden border border-slate-200/60">
+                      <div
+                        className="bg-[#359830] h-3 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${progressRealData}%` }}
+                      />
+                    </div>
+
+                    {/* Aviso de Primeiro Carregamento */}
+                    <div className="p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-3 text-left">
+                      <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs text-amber-900 leading-relaxed">
+                        <span className="font-semibold block text-amber-950 mb-0.5">Primeiro carregamento:</span>
+                        Na primeira vez, a consulta pode demorar alguns segundos enquanto os dados econômicos e estatísticos são sincronizados com o servidor.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {/* Radar */}

@@ -23,7 +23,7 @@ export default function Home() {
           setNoticiasDestaque(destaques);
         }
       } catch (e) {
-        console.error("Erro ao carregar notícias na página inicial:", e);
+        console.warn("Erro ao carregar notícias na página inicial:", e);
         if (isMounted) setNoticiasError(true);
       } finally {
         if (isMounted) setLoadingNoticias(false);

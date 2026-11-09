@@ -26,7 +26,7 @@ export default function EventosPage() {
         const data = await fetchEventos();
         if (isMounted) setEventos(data);
       } catch (error) {
-        console.error("Erro ao carregar eventos:", error);
+        console.warn("Erro ao carregar eventos:", error);
         if (isMounted) setLoadError(true);
       } finally {
         if (isMounted) setLoading(false);

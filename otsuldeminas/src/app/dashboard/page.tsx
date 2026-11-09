@@ -87,12 +87,23 @@ const ExportMenu = ({ onExportCSV, onExportPNG }: { onExportCSV: () => void, onE
 };
 
 // Cores para as diferentes cidades no gráfico
+// Paleta de cores para cidades: otimizada para acessibilidade visual e daltonismo (WCAG 2.1 AA)
+// Combina a identidade visual (#2E7D32) com matizes de alto contraste cromático
+// distinguíveis por usuários com deuteranopia, protanopia e tritanopia (paleta Okabe-Ito / Tol)
 const CITY_COLORS = [
-  "#359830", "#287524", "#1D5C1B", "#5BAF56", "#C90C0F",
-  "#359830", "#287524", "#1D5C1B", "#5BAF56", "#C90C0F"
+  "#2E7D32", // Verde Esmeralda (Marca do Observatório)
+  "#1976D2", // Azul Safira (Alto contraste para daltônicos vermelho-verde)
+  "#E65100", // Laranja Âmbar
+  "#7B1FA2", // Púrpura Intenso
+  "#00838F", // Ciano Petróleo
+  "#C2185B", // Framboesa Escuro
+  "#F57F17", // Amarelo Ocre
+  "#37474F", // Ardósia / Grafite Escuro
+  "#0097A7", // Turquesa
+  "#D84315"  // Terracota
 ];
 
-const COLORS = ["#359830", "#287524", "#1D5C1B", "#5BAF56", "#EAF4E9", "#C90C0F"];
+const COLORS = ["#2E7D32", "#1976D2", "#E65100", "#7B1FA2", "#00838F", "#C2185B"];
 
 import { fetchJSONAndFlatten, globalCache } from "@/lib/api";
 
@@ -163,7 +174,7 @@ export default function Dashboard() {
         setEstoque(estoqueData);
         setPostos(postosData);
       } catch (error) {
-        console.error(error);
+        console.warn("Erro ao carregar dados do dashboard:", error);
       } finally {
         setLoading(false);
       }

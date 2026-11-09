@@ -35,7 +35,7 @@ function NoticiasContent() {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Erro ao carregar notícias:", err);
+        console.warn("Erro ao carregar notícias:", err);
         if (isMounted) {
           setNoticias([]);
           setLoadError(true);

@@ -78,7 +78,7 @@ function CidadesContent() {
       fetchNoticias()
         .then((data) => { if (isMounted) setNoticias(data); })
         .catch((error) => {
-          console.error("Erro ao carregar notícias relacionadas às cidades:", error);
+          console.warn("Erro ao carregar notícias relacionadas às cidades:", error);
           if (isMounted) setNoticiasError(true);
         })
         .finally(() => {

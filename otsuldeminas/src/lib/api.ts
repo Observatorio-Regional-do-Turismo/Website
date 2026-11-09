@@ -119,7 +119,7 @@ export const fetchJSONAndFlatten = async (url: string, type: DataType): Promise<
     globalCache[cacheKey] = flatData;
     return flatData;
   } catch (e) {
-    console.error(`Erro ao carregar ${type}:`, e);
+    console.warn(`Erro ao carregar ${type}:`, e);
     return [];
   }
 };

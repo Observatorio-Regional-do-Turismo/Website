@@ -911,8 +911,14 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                             axisLine={false}
                             tickLine={false}
                           />
+                          {/* Tooltip com redundância textual e semântica para acessibilidade a daltônicos */}
                           <Tooltip
-                            formatter={(val: number | string) => [`${val}`, "Saldo"]}
+                            formatter={(val: number | string) => {
+                              const num = Number(val) || 0;
+                              const sinal = num > 0 ? "+" : "";
+                              const status = num >= 0 ? "Admissões Líquidas (Crescimento)" : "Desligamentos Líquidos (Retração)";
+                              return [`${sinal}${num} vagas (${status})`, "Saldo Mensal"];
+                            }}
                             labelFormatter={(label) => `Mês: ${label}`}
                             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
                             cursor={{ fill: '#f1f5f9' }}
@@ -922,8 +928,9 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                             radius={[4, 4, 4, 4]}
                           >
                             {
+                              // Cores semanticas de alto contraste acessivel (Verde Esmeralda e Vermelho Carmim)
                               realPostos.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={Number(entry.Saldo) >= 0 ? '#359830' : '#C90C0F'} />
+                                <Cell key={`cell-${index}`} fill={Number(entry.Saldo) >= 0 ? '#2E7D32' : '#D32F2F'} />
                               ))
                             }
                           </Bar>

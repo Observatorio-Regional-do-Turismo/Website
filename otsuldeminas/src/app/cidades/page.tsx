@@ -27,7 +27,7 @@ async function fetchAllResults<T>(url: string): Promise<T[]> {
     results.push(...page.results);
 
     if (page.next) {
-      const nextPageUrl : URL = new URL(page.next, nextUrl);
+      const nextPageUrl: URL = new URL(page.next, nextUrl);
       if (nextUrl.startsWith("https://")) nextPageUrl.protocol = "https:";
       nextUrl = nextPageUrl.toString();
     } else {
@@ -214,65 +214,65 @@ function CidadesContent() {
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
           <div className="grid w-full flex-1 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400" />
+            <div className="relative w-full">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                aria-label="Buscar cidade pelo nome"
+                placeholder="Buscar cidade pelo nome..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  title="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <input
               type="text"
-              aria-label="Buscar cidade pelo nome"
-              placeholder="Buscar cidade pelo nome..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
+              inputMode="numeric"
+              maxLength={7}
+              aria-label="Código IBGE"
+              placeholder="Código IBGE"
+              value={ibgeCode}
+              onChange={(e) => setIbgeCode(e.target.value.replace(/\D/g, ""))}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
             />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                title="Limpar busca"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={7}
-            aria-label="Código IBGE"
-            placeholder="Código IBGE"
-            value={ibgeCode}
-            onChange={(e) => setIbgeCode(e.target.value.replace(/\D/g, ""))}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
-          />
-          <select
-            aria-label="Filtrar por estado"
-            value={estadoId}
-            onChange={(e) => setEstadoId(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
-          >
-            <option value="">Todos os estados</option>
-            {estados.map((estado) => <option key={estado.id} value={estado.id}>{estado.name}</option>)}
-          </select>
-          <select
-            aria-label="Filtrar por IGR"
-            value={igrId}
-            onChange={(e) => setIgrId(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
-          >
-            <option value="">Todas as IGRs</option>
-            {igrs.map((igr) => <option key={igr.id} value={igr.id}>{igr.name}</option>)}
-          </select>
-          <select
-            aria-label="Ordenar municípios"
-            value={ordering}
-            onChange={(e) => setOrdering(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
-          >
-            <option value="name">Nome: A-Z</option>
-            <option value="-name">Nome: Z-A</option>
-          </select>
+            <select
+              aria-label="Filtrar por estado"
+              value={estadoId}
+              onChange={(e) => setEstadoId(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+            >
+              <option value="">Todos os estados</option>
+              {estados.map((estado) => <option key={estado.id} value={estado.id}>{estado.name}</option>)}
+            </select>
+            <select
+              aria-label="Filtrar por IGR"
+              value={igrId}
+              onChange={(e) => setIgrId(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+            >
+              <option value="">Todas as IGRs</option>
+              {igrs.map((igr) => <option key={igr.id} value={igr.id}>{igr.name}</option>)}
+            </select>
+            <select
+              aria-label="Ordenar municípios"
+              value={ordering}
+              onChange={(e) => setOrdering(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+            >
+              <option value="name">Nome: A-Z</option>
+              <option value="-name">Nome: Z-A</option>
+            </select>
           </div>
 
           <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-end">
@@ -285,7 +285,7 @@ function CidadesContent() {
         </div>
       </div>
 
-      
+
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1 space-y-12">
         {/* ========================================================================= */}
         {/* SEÇÃO: MUNICÍPIOS & INDICADORES */}
@@ -295,7 +295,7 @@ function CidadesContent() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
                 <MapPin className="h-3.5 w-3.5" />
-                Observatório Sul de Minas
+                Observatório Regional
               </div>
               <h1 className="text-3xl font-extrabold text-[#1D5C1B] tracking-tight">
                 Municípios & Indicadores

@@ -8,12 +8,12 @@ interface HeaderProps {
 }
 
 export function Header({
-  imageSrc = "/images/cidades-hero.jpg",
-  imageAlt = "Pontos turísticos e paisagens do Sul de Minas Gerais",
+  imageSrc = "/images/hero-padrao.jpg",
+  imageAlt = "Pontos turísticos e paisagens",
   title,
-  subtitle = "do Sul de Minas Gerais • Instituto Federal",
+  subtitle = "Instituto Federal Poços de Caldas",
   badge,
-  imagePosition = "object-[center_40%]",
+  imagePosition = "object-[center_65%]",
 }: HeaderProps = {}) {
   return (
     <header className="relative bg-slate-900 shadow-xl print:bg-white print:shadow-none print:border-b print:border-slate-200">
@@ -58,4 +58,4 @@ export function Header({
       </div>
     </header>
   );
-}
+}

@@ -315,10 +315,8 @@ export default function GestaoPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      <Header
-        imageSrc="/images/sul_de_minas_bg.jpg"
-        imageAlt="Área de gestão do Observatório Regional do Turismo"
-      />
+      {/* Hero padronizado */}
+      <Header />
       <section className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         {loading ? (
           <div className="flex min-h-64 items-center justify-center gap-3 text-slate-600">

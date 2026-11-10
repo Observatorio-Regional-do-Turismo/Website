@@ -39,11 +39,11 @@ export default function Home() {
       <section className="relative w-full py-24 sm:py-32 bg-slate-900 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
           <img 
-            src="/images/sul_de_minas_bg.jpg" 
-            alt="Turismo no Sul de Minas" 
-            className="w-full h-full object-cover opacity-40" 
+            src="/images/hero-padrao.jpg" 
+            alt="Observatório Regional do Turismo" 
+            className="w-full h-full object-cover object-[center_65%] opacity-65 brightness-105" 
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-slate-900/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/50 to-slate-900/80"></div>
         </div>
         <div className="relative z-10 text-center max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-md">

@@ -133,11 +133,8 @@ function SelosContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
-      {/* Hero padrão com a imagem de fundo enviada */}
-      <Header
-        imageSrc="/images/selos-hero.jpg"
-        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
-      />
+      {/* Hero padronizado */}
+      <Header />
 
       {/* Barra de Busca e Filtro */}
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">

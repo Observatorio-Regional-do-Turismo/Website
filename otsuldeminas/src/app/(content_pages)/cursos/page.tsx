@@ -8,7 +8,7 @@ export default function CursosPage() {
       </div>
       <h1 className="text-4xl font-bold text-slate-800 mb-4">Cursos</h1>
       <p className="text-lg text-slate-600 max-w-lg">
-        Esta funcionalidade está em desenvolvimento. Em breve você encontrará todas as capacitações e cursos profissionalizantes voltados ao turismo do Sul de Minas.
+        Esta funcionalidade está em desenvolvimento. Em breve você encontrará todas as capacitações e cursos profissionalizantes voltados ao turismo regional.
       </p>
     </div>
   );

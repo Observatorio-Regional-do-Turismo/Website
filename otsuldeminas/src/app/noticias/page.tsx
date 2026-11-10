@@ -96,11 +96,8 @@ function NoticiasContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
-      {/* Hero padrão com a descrição idêntica às demais páginas */}
-      <Header
-        imageSrc="/images/sul_de_minas_bg.jpg"
-        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
-      />
+      {/* Hero padronizado */}
+      <Header />
 
       {/* Barra de Busca e Filtros Rápidos */}
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
@@ -214,7 +211,7 @@ function NoticiasContent() {
                       <Sparkles className="h-5 w-5" />
                       Notícias em destaque
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">Destaques recentes do Sul de Minas.</p>
+                    <p className="mt-1 text-sm text-slate-500">Destaques recentes da região.</p>
                   </div>
                 </div>
                 <NoticiaCarousel

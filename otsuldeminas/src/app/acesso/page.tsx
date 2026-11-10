@@ -39,10 +39,8 @@ export default function AcessoPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      <Header
-        imageSrc="/images/sul_de_minas_bg.jpg"
-        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
-      />
+      {/* Hero padronizado */}
+      <Header />
       <section className="mx-auto flex w-full max-w-lg flex-1 items-center px-4 py-12 sm:px-6">
         <div className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-9">
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-[#1D5C1B]">

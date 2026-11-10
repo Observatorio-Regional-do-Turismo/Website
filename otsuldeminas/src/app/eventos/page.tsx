@@ -75,73 +75,88 @@ export default function EventosPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
-      <Header
-        imageSrc="/images/sul_de_minas_bg.jpg"
-        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
-      />
+      {/* Hero padronizado */}
+      <Header />
+
+      {/* Barra de Busca e Filtro */}
+      <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+          <div className="grid w-full flex-1 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="relative w-full">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                aria-label="Buscar eventos"
+                placeholder="Buscar por evento ou município..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  title="Limpar busca"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <select
+              aria-label="Filtrar eventos por município"
+              value={cidadeId}
+              onChange={(event) => setCidadeId(event.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+            >
+              <option value="">Todos os municípios</option>
+              {cidades.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Filtrar eventos por período"
+              value={period}
+              onChange={(event) => setPeriod(event.target.value as EventPeriod)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
+            >
+              <option value="all">Todos os períodos</option>
+              <option value="upcoming">Em andamento e futuros</option>
+              <option value="past">Encerrados</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-end">
+            {!loading && !loadError && (
+              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                {filteredEventos.length} {filteredEventos.length === 1 ? "evento" : "eventos"}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
 
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1">
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
               <CalendarDays className="h-3.5 w-3.5" />
-              Observatório Sul de Minas
+              Observatório Regional
             </div>
             <h1 className="text-3xl font-extrabold text-[#1D5C1B] tracking-tight">
               Eventos & Festividades
             </h1>
             <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              Consulte a programação de eventos culturais, gastronômicos e turísticos nos municípios do Sul de Minas Gerais.
+              Consulte a programação de eventos culturais, gastronômicos e turísticos nos municípios da região.
             </p>
           </div>
-          {!loading && !loadError && (
-            <span className="self-start rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 sm:self-auto shadow-xs">
-              {filteredEventos.length} {filteredEventos.length === 1 ? "evento" : "eventos"}
-            </span>
-          )}
-        </div>
-
-        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              aria-label="Buscar eventos"
-              placeholder="Buscar por evento ou município..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm text-slate-800 focus:border-[#359830] focus:outline-none focus:ring-2 focus:ring-[#359830]/30"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                aria-label="Limpar busca"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <select
-            aria-label="Filtrar eventos por município"
-            value={cidadeId}
-            onChange={(event) => setCidadeId(event.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 focus:border-[#359830] focus:outline-none focus:ring-2 focus:ring-[#359830]/30"
-          >
-            <option value="">Todos os municípios</option>
-            {cidades.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-          </select>
-          <select
-            aria-label="Filtrar eventos por período"
-            value={period}
-            onChange={(event) => setPeriod(event.target.value as EventPeriod)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 focus:border-[#359830] focus:outline-none focus:ring-2 focus:ring-[#359830]/30"
-          >
-            <option value="all">Todos os períodos</option>
-            <option value="upcoming">Em andamento e futuros</option>
-            <option value="past">Encerrados</option>
-          </select>
         </div>
 
         {loading ? (

@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { 
-  X, 
-  Building2, 
-  MapPin, 
-  Target, 
-  Eye, 
-  HeartHandshake, 
-  ChevronRight, 
+import {
+  X,
+  Building2,
+  MapPin,
+  ChevronRight,
   Layers
 } from "lucide-react";
 import axios from "axios";
@@ -39,7 +36,7 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
       .then((response) => {
         if (active && response?.data) setIgrDetalhesApi(response.data);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => { active = false; };
   }, [igr]);
@@ -87,14 +84,14 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" 
+      <div
+        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Container do Modal */}
       <div className="relative bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
-        
+
         {/* Botão Fechar Flutuante */}
         <button
           onClick={onClose}
@@ -135,7 +132,7 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
 
         {/* Conteúdo Rolável */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8">
-          
+
           {/* Descrição & Propósito */}
           <div className="space-y-3">
             <h3 className="text-lg font-bold text-slate-800">
@@ -153,44 +150,7 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
             )}
           </div>
 
-          {/* Missão, Visão e Valores (Eixos Estratégicos) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm mb-2">
-                  <Target className="h-4 w-4 text-emerald-600" />
-                  Missão
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Promover o desenvolvimento sustentável do turismo local integrando os setores público e privado para geração de renda e valorização do território.
-                </p>
-              </div>
-            </div>
 
-            <div className="p-4 rounded-2xl bg-[#EAF4E9] border border-[#5BAF56]/30 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-[#359830] font-bold text-sm mb-2">
-                  <Eye className="h-4 w-4 text-[#359830]" />
-                  Visão
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Consolidar os destinos da região como referência em sustentabilidade, hospitalidade mineira e experiências turísticas de qualidade.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-red-50/60 border border-[#C90C0F]/20 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-[#C90C0F] font-bold text-sm mb-2">
-                  <HeartHandshake className="h-4 w-4 text-[#C90C0F]" />
-                  Valores
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Sustentabilidade, cooperação intermunicipal, hospitalidade mineira, transparência e preservação cultural e ambiental.
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Municípios Integrantes */}
           <div className="space-y-4 pt-4 border-t border-slate-100">

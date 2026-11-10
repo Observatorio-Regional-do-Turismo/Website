@@ -6,10 +6,8 @@ import { InscricaoGestorForm } from "@/components/InscricaoGestorForm";
 export default function FaleConoscoPage() {
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      <Header
-        imageSrc="/images/sul_de_minas_bg.jpg"
-        imageAlt="Paisagem panorâmica do Sul de Minas Gerais"
-      />
+      {/* Hero padronizado */}
+      <Header />
 
       <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 text-center">
         {/* Ícone e Título Institucional */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   Building2,
@@ -9,6 +9,7 @@ import {
   TrendingUp,
   X,
   Info,
+  AlertCircle,
   BarChart3,
   RefreshCw,
   Phone,
@@ -33,15 +34,24 @@ import {
   CartesianGrid,
   Tooltip,
   Cell,
-  Line,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  ComposedChart
+  ReferenceLine
 } from "recharts";
-import { fetchJSONAndFlatten, getCodigoIBGEParaGraficos, globalCache } from "@/lib/api";
+import {
+  AnalyticsRecord,
+  clearAnalyticsCache,
+  fetchJSONAndFlatten,
+  getCodigoIBGEParaGraficos,
+  hasCachedData,
+  hasFetchError,
+  normalizarClassificacaoCurta,
+  normalizeText,
+  parseNumericValue
+} from "@/lib/api";
 import {
   formatarPopulacao,
   formatarPIB,
@@ -59,15 +69,11 @@ import axios from "axios";
 import { NoticiaCard } from "@/components/NoticiaCard";
 import { getWebsiteApiBaseUrl } from "@/lib/website-api";
 
-interface CityRecord {
-  Município?: string;
-  Classificação?: string;
-  Estabelecimentos?: string | number;
-  Funcionarios?: string | number;
-  Ano?: string | number;
-  Mês?: string;
-  Saldo?: string | number;
-  [key: string]: unknown;
+interface MonthlySaldoItem {
+  Mês: string;
+  MesLabel: string;
+  MesCompleto: string;
+  Saldo: number;
 }
 
 interface CombinedCityItem {
@@ -75,6 +81,58 @@ interface CombinedCityItem {
   ClassificacaoOriginal: string;
   Estabelecimentos: number;
   Funcionarios: number;
+}
+
+interface SectorAuditState {
+  hasEst: boolean;
+  hasFunc: boolean;
+  missingEstSectors: string[];
+  missingFuncSectors: string[];
+  failedBases: string[];
+  regionalMonthsByYear: Record<string, string[]>;
+  isRegionalPostos: boolean;
+  unexpectedError: boolean;
+}
+
+const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_COMPLETOS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+function formatarNumeroGrafico(val: number | string | undefined): string {
+  const num = parseNumericValue(val);
+  return new Intl.NumberFormat("pt-BR").format(num);
+}
+
+function agregarPostosPorMes(registros: AnalyticsRecord[], year: string): MonthlySaldoItem[] {
+  const targetYear = year.trim();
+  if (!/^\d{4}$/.test(targetYear)) return [];
+
+  const porMes = new Map<string, number>();
+  registros.forEach((r) => {
+    const rowYear = String(r.Ano ?? "").trim();
+    if (rowYear !== targetYear) return;
+    const mesRaw = String(r.Mês ?? "").trim();
+    if (!/^\d{1,2}$/.test(mesRaw)) return;
+    const mesNum = Number.parseInt(mesRaw, 10);
+    if (mesNum < 1 || mesNum > 12) return;
+    const mes = String(mesNum).padStart(2, "0");
+    const saldo = parseNumericValue(r.Saldo);
+    porMes.set(mes, (porMes.get(mes) || 0) + saldo);
+  });
+
+  return Array.from(porMes.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([mes, saldo]) => {
+      const idx = parseInt(mes, 10) - 1;
+      return {
+        Mês: mes,
+        MesLabel: MESES_CURTOS[idx] || mes,
+        MesCompleto: `${MESES_COMPLETOS[idx] || mes} de ${targetYear}`,
+        Saldo: saldo
+      };
+    });
 }
 
 interface CidadeDetalhesModalProps {
@@ -108,15 +166,31 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
   const [imageError, setImageError] = useState(false);
   const [cidadeDetalhesApi, setCidadeDetalhesApi] = useState<ApiCidade | null>(null);
   const [estadoNomeApi, setEstadoNomeApi] = useState<string | null>(null);
-  const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
-  const [rawPostosCity, setRawPostosCity] = useState<CityRecord[]>([]);
+  const [rawPostosCity, setRawPostosCity] = useState<AnalyticsRecord[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [combinedData, setCombinedData] = useState<CombinedCityItem[]>([]);
-  const [loadingRealData, setLoadingRealData] = useState(false);
+  const [loadingRealData, setLoadingRealData] = useState(true);
   const [progressRealData, setProgressRealData] = useState(0);
   const [progressMessage, setProgressMessage] = useState("Conectando aos dados da cidade...");
-  const [dataIsPartial, setDataIsPartial] = useState(false);
+  const [sectorAudit, setSectorAudit] = useState<SectorAuditState>({
+    hasEst: false,
+    hasFunc: false,
+    missingEstSectors: [],
+    missingFuncSectors: [],
+    failedBases: [],
+    regionalMonthsByYear: {},
+    isRegionalPostos: false,
+    unexpectedError: false
+  });
+  const [statusPinned, setStatusPinned] = useState(false);
+  const [statusHovered, setStatusHovered] = useState(false);
+  const [statusFocused, setStatusFocused] = useState(false);
+  const [statusDismissed, setStatusDismissed] = useState(false);
+  const statusBadgeRef = useRef<HTMLDivElement>(null);
+  const statusTooltipId = useId();
+  const [graphsFetchError, setGraphsFetchError] = useState<string | null>(null);
+  const [graphsReloadKey, setGraphsReloadKey] = useState(0);
 
   // Pontos Turísticos e Eventos reais da API
   const [pontosTuristicos, setPontosTuristicos] = useState<ApiPontoTuristico[]>([]);
@@ -175,131 +249,247 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
     return () => { active = false; };
   }, [cidade.id, cidade.name, cidade.state, cidadeDetalhesApi?.state]);
 
+  const cidadeId = cidade?.id;
+  const cidadeName = cidade?.name ?? "";
+  const cidadeIbgeCode = cidade?.ibge_code;
+
   // 1. Buscar dados analíticos da API de gráficos
   useEffect(() => {
-    if (cidade) {
-      const loadGraphs = async () => {
-        setLoadingRealData(true);
-        const hasCache = Boolean(globalCache['estabelecimentos'] && globalCache['funcionarios']);
-        setProgressRealData(hasCache ? 60 : 15);
-        setProgressMessage(hasCache ? "Carregando dados em cache..." : "Buscando estabelecimentos (1/3)...");
-        try {
-          const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
-          const baseUrl = rawUrl.replace(/\/$/, "");
-          const codigoIBGE = getCodigoIBGEParaGraficos(cidade.ibge_code);
+    let active = true;
+    if (!cidadeName) {
+      setLoadingRealData(false);
+      return () => {
+        active = false;
+      };
+    }
 
-          let completed = 0;
-          const total = 3;
-          const msgs = [
-            "Processando funcionários (2/3)...",
-            "Mapeando postos de trabalho da cidade (3/3)...",
-            "Calculando indicadores do município..."
-          ];
+    const loadGraphs = async () => {
+      setLoadingRealData(true);
+      setGraphsFetchError(null);
+      setCombinedData([]);
+      setRawPostosCity([]);
+      setAvailableYears([]);
+      setSelectedYear("");
+      setStatusPinned(false);
+      setStatusDismissed(false);
+      setSectorAudit({
+        hasEst: false,
+        hasFunc: false,
+        missingEstSectors: [],
+        missingFuncSectors: [],
+        failedBases: [],
+        regionalMonthsByYear: {},
+        isRegionalPostos: false,
+        unexpectedError: false
+      });
 
-          const updateProgress = (index: number) => {
-            completed++;
-            setProgressRealData(Math.min(95, Math.floor((completed / total) * 100)));
-            setProgressMessage(msgs[index] || "Finalizando gráficos...");
-          };
+      const rawUrl = (process.env.NEXT_PUBLIC_GRAPHS_URL ?? "").trim();
+      const baseUrl = (rawUrl || "/api/externo").replace(/\/$/, "");
+      const codigoIBGE = getCodigoIBGEParaGraficos(cidadeIbgeCode);
+      const postosUrl = codigoIBGE
+        ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
+        : `${baseUrl}/postos_de_trabalho/`;
 
-          const [estData, funcData, postosData] = await Promise.all([
-            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos').then(d => { updateProgress(0); return d as CityRecord[]; }),
-            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios').then(d => { updateProgress(1); return d as CityRecord[]; }),
-            fetchJSONAndFlatten(codigoIBGE ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}` : `${baseUrl}/postos_de_trabalho/`, 'postos').then(d => { updateProgress(2); return d as CityRecord[]; })
-          ]);
+      const hasAllCached =
+        hasCachedData("estabelecimentos") &&
+        hasCachedData("funcionarios") &&
+        (hasCachedData("postos", postosUrl) || Boolean(codigoIBGE && hasCachedData("postos")));
 
-          const normalize = (text?: unknown) =>
-            String(text ?? '')
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toLowerCase()
-              .trim();
+      setProgressRealData(hasAllCached ? 95 : 15);
+      setProgressMessage(hasAllCached ? "Carregando dados em cache..." : "Consultando bases do município (0/3)...");
 
-          const cityTarget = normalize(cidade.name);
+      try {
+        let completed = 0;
+        const total = 3;
+        const stepMessages = [
+          "Processando estabelecimentos e vínculos (1/3)...",
+          "Mapeando postos de trabalho do município (2/3)...",
+          "Consolidando indicadores setoriais (3/3)..."
+        ];
 
-          const matchRecordCity = (r: CityRecord) => {
-            const munKey = Object.keys(r).find(k => k.toLowerCase().includes("munic")) || "Município";
-            const rowMun = normalize(r[munKey]);
-            return rowMun === cityTarget || rowMun.includes(cityTarget) || cityTarget.includes(rowMun);
-          };
+        const onStepComplete = () => {
+          completed++;
+          if (!active) return;
+          setProgressRealData((prev) => Math.max(prev, Math.min(95, Math.floor((completed / total) * 100))));
+          setProgressMessage(stepMessages[completed - 1] || "Finalizando gráficos...");
+        };
 
-          const estCity = (estData || []).filter(matchRecordCity);
-          const funcCity = (funcData || []).filter(matchRecordCity);
-          const postosCity = (postosData || []).filter(matchRecordCity);
+        const [estData, funcData, postosData] = await Promise.all([
+          fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, "estabelecimentos").then((d) => {
+            onStepComplete();
+            return d;
+          }),
+          fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, "funcionarios").then((d) => {
+            onStepComplete();
+            return d;
+          }),
+          fetchJSONAndFlatten(postosUrl, "postos").then((d) => {
+            onStepComplete();
+            return d;
+          })
+        ]);
 
-          if (estCity.length > 0) {
-            setRawPostosCity(postosCity);
-            const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
-              .filter(y => y && y !== 'undefined' && y !== 'null')
-              .sort((a, b) => Number(b) - Number(a)) as string[];
-            setAvailableYears(years);
+        if (!active) return;
 
-            const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
-            setSelectedYear(defaultYear);
-            setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
+        const failedBases: string[] = [];
+        if (hasFetchError("estabelecimentos")) failedBases.push("Estabelecimentos");
+        if (hasFetchError("funcionarios")) failedBases.push("Funcionários");
+        if (hasFetchError("postos", postosUrl)) failedBases.push("Saldo de Postos");
 
-            const mapFunc = new Map<string, number>();
-            funcCity.forEach((f) => {
-              const classKey = Object.keys(f).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
-              const funcKey = Object.keys(f).find(k => k.toLowerCase().includes("func")) || "Funcionarios";
-              if (f[classKey]) {
-                mapFunc.set(String(f[classKey]), Number(f[funcKey]) || 0);
-              }
-            });
+        if (failedBases.length > 0) {
+          setGraphsFetchError(
+            failedBases.length === 3
+              ? "Não foi possível carregar os indicadores econômicos do município no momento."
+              : `Algumas bases não puderam ser carregadas (${failedBases.join(", ")}).`
+          );
+        }
 
-            const mapShortName: Record<string, string> = {
-              "Alojamento": "Hospedagem",
-              "Alimentação": "Restaurantes",
-              "Transporte": "Transporte",
-              "Agências de viagens": "Agências",
-              "Cultura e lazer": "Cultura",
-              "Outros serviços turísticos": "Outros"
-            };
+        const cityTarget = normalizeText(cidadeName);
 
-            const combined: CombinedCityItem[] = estCity.map((e) => {
-              const classKey = Object.keys(e).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
-              const estKey = Object.keys(e).find(k => k.toLowerCase().includes("estab")) || "Estabelecimentos";
-              const rawClass = String(e[classKey] || "Outros");
-              let shortClass = rawClass;
-              for (const [key, val] of Object.entries(mapShortName)) {
-                if (rawClass.toLowerCase().includes(key.toLowerCase())) {
-                  shortClass = val;
-                  break;
-                }
-              }
-              return {
-                Classificação: shortClass,
-                ClassificacaoOriginal: rawClass,
-                Estabelecimentos: Number(e[estKey]) || 0,
-                Funcionarios: mapFunc.get(rawClass) || 0
-              };
-            });
+        // Comparação exata após normalização Unicode (evita misturar cidades como "Caldas" e "Poços de Caldas")
+        const matchRecordCity = (r: AnalyticsRecord) => {
+          const rowMun = normalizeText(r.Município);
+          return Boolean(rowMun) && rowMun === cityTarget;
+        };
 
-            setCombinedData(combined);
-            setDataIsPartial(postosCity.length === 0 || funcCity.length === 0);
-          } else {
-            setCombinedData([]);
-            setRawPostosCity([]);
-            setAvailableYears([]);
-            setRealPostos([]);
-            setDataIsPartial(false);
+        const estCity = (estData || []).filter(matchRecordCity);
+        const funcCity = (funcData || []).filter(matchRecordCity);
+        let postosCity = (postosData || []).filter(matchRecordCity);
+
+        // Fallback seguro quando a consulta municipal direta por codigo_ibge traz nome ligeiramente divergente
+        if (codigoIBGE && postosCity.length === 0 && postosData.length > 0) {
+          const distinctPostosCities = new Set(
+            postosData.map((r) => normalizeText(r.Município)).filter(Boolean)
+          );
+          if (distinctPostosCities.size === 1) {
+            postosCity = postosData;
           }
-        } catch (err) {
-          console.warn("API de gráficos indisponível:", err);
-          setCombinedData([]);
-          setRawPostosCity([]);
-          setAvailableYears([]);
-          setRealPostos([]);
-          setDataIsPartial(false);
-        } finally {
+        }
+
+        setRawPostosCity(postosCity);
+        const years = Array.from(
+          new Set(
+            postosCity
+              .map((p) => String(p.Ano ?? "").trim())
+              .filter((y) => /^\d{4}$/.test(y))
+          )
+        ).sort((a, b) => Number(b) - Number(a));
+        setAvailableYears(years);
+
+        const defaultYear = years.length > 0 ? years[0] : "";
+        setSelectedYear(defaultYear);
+
+        const mapCombined = new Map<string, CombinedCityItem>();
+        estCity.forEach((e) => {
+          const shortClass = normalizarClassificacaoCurta(e.Classificação);
+          const current = mapCombined.get(shortClass) || {
+            Classificação: shortClass,
+            ClassificacaoOriginal: e.Classificação,
+            Estabelecimentos: 0,
+            Funcionarios: 0
+          };
+          current.Estabelecimentos += parseNumericValue(e.Estabelecimentos);
+          mapCombined.set(shortClass, current);
+        });
+
+        funcCity.forEach((f) => {
+          const shortClass = normalizarClassificacaoCurta(f.Classificação);
+          const current = mapCombined.get(shortClass) || {
+            Classificação: shortClass,
+            ClassificacaoOriginal: f.Classificação,
+            Estabelecimentos: 0,
+            Funcionarios: 0
+          };
+          current.Funcionarios += parseNumericValue(f.Funcionarios);
+          mapCombined.set(shortClass, current);
+        });
+
+        const combined = Array.from(mapCombined.values()).sort(
+          (a, b) => b.Estabelecimentos - a.Estabelecimentos
+        );
+        setCombinedData(combined);
+
+        // Auditoria de completude setorial e metadados mensais por ano (reativa ao ano selecionado)
+        const allEstSectors = new Set(
+          estData.map((r) => normalizarClassificacaoCurta(r.Classificação)).filter(Boolean)
+        );
+        const allFuncSectors = new Set(
+          funcData.map((r) => normalizarClassificacaoCurta(r.Classificação)).filter(Boolean)
+        );
+        const cityEstSectors = new Set(
+          estCity.map((r) => normalizarClassificacaoCurta(r.Classificação)).filter(Boolean)
+        );
+        const cityFuncSectors = new Set(
+          funcCity.map((r) => normalizarClassificacaoCurta(r.Classificação)).filter(Boolean)
+        );
+
+        const missingEstSectors = Array.from(allEstSectors).filter((s) => !cityEstSectors.has(s));
+        const missingFuncSectors = Array.from(allFuncSectors).filter((s) => !cityFuncSectors.has(s));
+
+        const distinctPostosCities = new Set(
+          postosData.map((r) => normalizeText(r.Município)).filter(Boolean)
+        );
+        const isRegionalPostos = distinctPostosCities.size > 1;
+        const regionalMonthsByYear: Record<string, string[]> = {};
+
+        if (isRegionalPostos) {
+          const monthSetsByYear = new Map<string, Set<string>>();
+          postosData.forEach((r) => {
+            const y = String(r.Ano ?? "").trim();
+            const mTrim = String(r.Mês ?? "").trim();
+            if (!/^\d{4}$/.test(y) || !/^\d{1,2}$/.test(mTrim)) return;
+            const mNum = Number.parseInt(mTrim, 10);
+            if (mNum < 1 || mNum > 12) return;
+            const mPad = String(mNum).padStart(2, "0");
+            if (!monthSetsByYear.has(y)) monthSetsByYear.set(y, new Set());
+            monthSetsByYear.get(y)!.add(mPad);
+          });
+          monthSetsByYear.forEach((set, y) => {
+            regionalMonthsByYear[y] = Array.from(set).sort();
+          });
+        }
+
+        setSectorAudit({
+          hasEst: estCity.length > 0,
+          hasFunc: funcCity.length > 0,
+          missingEstSectors,
+          missingFuncSectors,
+          failedBases,
+          regionalMonthsByYear,
+          isRegionalPostos,
+          unexpectedError: false
+        });
+      } catch (err) {
+        console.warn("API de gráficos indisponível:", err);
+        if (!active) return;
+        setCombinedData([]);
+        setRawPostosCity([]);
+        setAvailableYears([]);
+        setSelectedYear("");
+        setSectorAudit({
+          hasEst: false,
+          hasFunc: false,
+          missingEstSectors: [],
+          missingFuncSectors: [],
+          failedBases: ["Estabelecimentos", "Funcionários", "Saldo de Postos"],
+          regionalMonthsByYear: {},
+          isRegionalPostos: false,
+          unexpectedError: true
+        });
+        setGraphsFetchError("Não foi possível carregar os indicadores econômicos do município no momento.");
+      } finally {
+        if (active) {
           setProgressRealData(100);
           setLoadingRealData(false);
         }
-      };
+      }
+    };
 
-      loadGraphs();
-    }
-  }, [cidade]);
+    loadGraphs();
+    return () => {
+      active = false;
+    };
+  }, [cidadeId, cidadeName, cidadeIbgeCode, graphsReloadKey]);
 
   // 2. Buscar Pontos Turísticos e Eventos específicos da Cidade
   useEffect(() => {
@@ -344,12 +534,126 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
     }
   }, [cidade]);
 
-  // Atualizar dados de postos ao selecionar outro ano
-  useEffect(() => {
-    if (selectedYear && rawPostosCity.length > 0) {
-      setRealPostos(rawPostosCity.filter((r) => String(r['Ano']) === selectedYear));
+  // Derivação memoizada da série mensal de postos, do radar e do status de integridade (reativo ao ano selecionado)
+  const realPostos = useMemo<MonthlySaldoItem[]>(
+    () => (selectedYear && rawPostosCity.length > 0 ? agregarPostosPorMes(rawPostosCity, selectedYear) : []),
+    [rawPostosCity, selectedYear]
+  );
+
+  const radarData = useMemo(
+    () => combinedData.filter((d) => d.Estabelecimentos > 0).slice(0, 6),
+    [combinedData]
+  );
+
+  const totalEstabelecimentosCity = useMemo(
+    () => radarData.reduce((sum, item) => sum + item.Estabelecimentos, 0),
+    [radarData]
+  );
+
+  const { dataStatus, dataStatusDetail } = useMemo<{
+    dataStatus: "complete" | "partial" | "unavailable";
+    dataStatusDetail: string;
+  }>(() => {
+    if (sectorAudit.unexpectedError) {
+      return {
+        dataStatus: "unavailable",
+        dataStatusDetail: "Falha inesperada ao consultar os indicadores econômicos."
+      };
     }
-  }, [selectedYear, rawPostosCity]);
+
+    const {
+      hasEst,
+      hasFunc,
+      missingEstSectors,
+      missingFuncSectors,
+      failedBases,
+      regionalMonthsByYear,
+      isRegionalPostos
+    } = sectorAudit;
+    const hasPostos = rawPostosCity.length > 0;
+    const hasAnyFetchError = failedBases.length > 0;
+    const activeYear = selectedYear || availableYears[0] || "";
+
+    let missingPostosMonths: string[] = [];
+    if (activeYear && hasPostos) {
+      const cityMonthsInYear = new Set<string>();
+      rawPostosCity.forEach((r) => {
+        if (String(r.Ano ?? "").trim() !== activeYear) return;
+        const trimmed = String(r.Mês ?? "").trim();
+        if (!/^\d{1,2}$/.test(trimmed)) return;
+        const num = Number.parseInt(trimmed, 10);
+        if (num >= 1 && num <= 12) {
+          cityMonthsInYear.add(String(num).padStart(2, "0"));
+        }
+      });
+
+      let expectedMonths: string[] = [];
+      if (isRegionalPostos && regionalMonthsByYear[activeYear]?.length) {
+        expectedMonths = regionalMonthsByYear[activeYear];
+      } else {
+        const monthNums = Array.from(cityMonthsInYear).map((m) => Number.parseInt(m, 10));
+        const maxMonth = monthNums.length > 0 ? Math.max(...monthNums) : 0;
+        for (let m = 1; m <= maxMonth; m++) {
+          expectedMonths.push(String(m).padStart(2, "0"));
+        }
+      }
+      missingPostosMonths = expectedMonths.filter((m) => !cityMonthsInYear.has(m));
+    }
+
+    const hasCoverageGaps =
+      missingEstSectors.length > 0 || missingFuncSectors.length > 0 || missingPostosMonths.length > 0;
+
+    if (!hasEst && !hasFunc && !hasPostos) {
+      return {
+        dataStatus: "unavailable",
+        dataStatusDetail: hasAnyFetchError
+          ? `Falha ao consultar as bases: ${failedBases.join(", ")}.`
+          : "Nenhum indicador econômico registrado para este município."
+      };
+    }
+
+    if (!hasEst || !hasFunc || !hasPostos || hasCoverageGaps || hasAnyFetchError) {
+      const gaps: string[] = [];
+      if (!hasEst) gaps.push("sem estabelecimentos");
+      else if (missingEstSectors.length > 0) {
+        gaps.push(`estabelecimentos sem ${missingEstSectors.slice(0, 2).join(", ")}`);
+      }
+      if (!hasFunc) gaps.push("sem funcionários");
+      else if (missingFuncSectors.length > 0) {
+        gaps.push(`funcionários sem ${missingFuncSectors.slice(0, 2).join(", ")}`);
+      }
+      if (!hasPostos) gaps.push("sem saldo de postos");
+      else if (missingPostosMonths.length > 0) {
+        gaps.push(`faltam meses em ${activeYear} (${missingPostosMonths.slice(0, 3).join(", ")})`);
+      }
+      if (hasAnyFetchError) gaps.push(`erro em ${failedBases.join(", ")}`);
+      return {
+        dataStatus: "partial",
+        dataStatusDetail: `Dados parciais: ${gaps.join("; ")}.`
+      };
+    }
+
+    return {
+      dataStatus: "complete",
+      dataStatusDetail: `Todas as bases setoriais e a série mensal (${activeYear}) estão completas para este município.`
+    };
+  }, [sectorAudit, rawPostosCity, selectedYear, availableYears]);
+
+  const isStatusTooltipVisible = statusPinned || (!statusDismissed && (statusHovered || statusFocused));
+
+  useEffect(() => {
+    if (!isStatusTooltipVisible) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (statusBadgeRef.current && !statusBadgeRef.current.contains(e.target as Node)) {
+        setStatusPinned(false);
+        setStatusHovered(false);
+        setStatusFocused(false);
+        setStatusDismissed(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [isStatusTooltipVisible]);
 
   // Fechar com a tecla Escape
   useEffect(() => {
@@ -752,24 +1056,137 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                   </div>
                 </div>
 
-                {/* Indicador de Integridade */}
+                {/* Indicador de Integridade Acessível */}
                 {loadingRealData ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-sm self-start sm:self-auto">
                     <RefreshCw className="w-3.5 h-3.5 text-[#359830] animate-spin" />
                     <span className="text-[11px] font-bold tracking-wide uppercase">Carregando dados...</span>
                   </div>
-                ) : dataIsPartial ? (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-[#C90C0F] border border-[#C90C0F]/20 shadow-sm self-start sm:self-auto">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#C90C0F] animate-pulse" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">Dados Parciais</span>
-                  </div>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] border border-[#5BAF56]/30 shadow-sm self-start sm:self-auto">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#359830]" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">Dados Completos</span>
+                  <div
+                    ref={statusBadgeRef}
+                    className="relative inline-flex self-start sm:self-auto"
+                    onMouseEnter={() => {
+                      setStatusHovered(true);
+                      setStatusDismissed(false);
+                    }}
+                    onMouseLeave={() => {
+                      setStatusHovered(false);
+                      setStatusDismissed(false);
+                    }}
+                    onBlur={(e) => {
+                      if (!statusBadgeRef.current?.contains(e.relatedTarget as Node | null)) {
+                        setStatusFocused(false);
+                        setStatusDismissed(false);
+                      }
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (statusPinned) {
+                          setStatusPinned(false);
+                          setStatusDismissed(true);
+                        } else {
+                          setStatusDismissed(false);
+                          setStatusPinned(true);
+                        }
+                      }}
+                      onFocus={() => {
+                        setStatusFocused(true);
+                        setStatusDismissed(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape" && isStatusTooltipVisible) {
+                          e.stopPropagation();
+                          setStatusPinned(false);
+                          setStatusDismissed(true);
+                        }
+                      }}
+                      aria-label={dataStatusDetail}
+                      aria-expanded={isStatusTooltipVisible}
+                      aria-describedby={isStatusTooltipVisible ? statusTooltipId : undefined}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
+                        dataStatus === "unavailable"
+                          ? "bg-red-50 text-[#C90C0F] border-[#C90C0F]/20"
+                          : dataStatus === "partial"
+                            ? "bg-amber-50 text-amber-800 border-amber-300"
+                            : "bg-[#EAF4E9] text-[#1D5C1B] border-[#5BAF56]/30"
+                      }`}
+                    >
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          dataStatus === "unavailable"
+                            ? "bg-[#C90C0F]"
+                            : dataStatus === "partial"
+                              ? "bg-amber-500 animate-pulse"
+                              : "bg-[#359830]"
+                        }`}
+                      />
+                      <span className="text-[11px] font-bold tracking-wide uppercase">
+                        {dataStatus === "unavailable"
+                          ? "Dados Indisponíveis"
+                          : dataStatus === "partial"
+                            ? "Dados Parciais"
+                            : "Dados Completos"}
+                      </span>
+                    </button>
+                    {isStatusTooltipVisible && dataStatusDetail && (
+                      <div
+                        id={statusTooltipId}
+                        role="tooltip"
+                        className="absolute top-full right-0 mt-2 w-64 bg-slate-800 text-white text-xs rounded-lg p-3 shadow-xl z-50 leading-relaxed"
+                      >
+                        {dataStatusDetail}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+
+              {/* Aviso de erro de rede/HTTP com recuperação seletiva na Seção 4 */}
+              {!loadingRealData && graphsFetchError && (
+                <div
+                  role="alert"
+                  className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-red-900">Falha ao consultar indicadores econômicos</p>
+                      <p className="text-xs text-red-800 mt-0.5">{graphsFetchError}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rawUrl = (process.env.NEXT_PUBLIC_GRAPHS_URL ?? "").trim();
+                      const baseUrl = (rawUrl || "/api/externo").replace(/\/$/, "");
+                      const codigoIBGE = getCodigoIBGEParaGraficos(cidadeIbgeCode);
+                      const postosUrl = codigoIBGE
+                        ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
+                        : `${baseUrl}/postos_de_trabalho/`;
+                      if (hasFetchError("estabelecimentos")) {
+                        clearAnalyticsCache("estabelecimentos");
+                      }
+                      if (hasFetchError("funcionarios")) {
+                        clearAnalyticsCache("funcionarios");
+                      }
+                      if (hasFetchError("postos", postosUrl)) {
+                        clearAnalyticsCache("postos", postosUrl);
+                      }
+                      if (hasFetchError("postos")) {
+                        clearAnalyticsCache("postos");
+                      }
+                      setGraphsReloadKey((k) => k + 1);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
 
               {/* Bloco de Progresso e Aviso quando os dados estiverem carregando */}
               {loadingRealData && (
@@ -786,7 +1203,14 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                     </div>
 
                     {/* Barra de Progresso */}
-                    <div className="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden border border-slate-200/60">
+                    <div
+                      role="progressbar"
+                      aria-valuenow={progressRealData}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Progresso de carregamento dos gráficos municipais"
+                      className="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden border border-slate-200/60"
+                    >
                       <div
                         className="bg-[#359830] h-3 rounded-full transition-all duration-500 ease-out"
                         style={{ width: `${progressRealData}%` }}
@@ -815,57 +1239,100 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                   <div className="h-64 w-full pt-2 relative flex items-center justify-center">
                     {loadingRealData ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10"><RefreshCw className="animate-spin text-[#359830] h-6 w-6" /></div>
-                    ) : combinedData.length === 0 ? (
-                      <div className="text-slate-400 text-sm">Sem dados de empresas disponíveis</div>
+                    ) : radarData.length === 0 ? (
+                      <div className="text-slate-600 text-sm text-center">Sem dados de estabelecimentos disponíveis</div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={combinedData}>
-                          <PolarGrid stroke="#EAF4E9" />
+                        <RadarChart cx="50%" cy="50%" outerRadius="58%" data={radarData}>
+                          <PolarGrid stroke="#d1e7d0" />
                           <PolarAngleAxis dataKey="Classificação" tick={{ fill: '#1D5C1B', fontSize: 10, fontWeight: 500 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
-                          <Radar name="Estabelecimentos" dataKey="Estabelecimentos" stroke="#359830" fill="#359830" fillOpacity={0.4} />
-                          <Tooltip formatter={(val: number | string) => [`${val}`, "Quantidade"]} contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fontSize: 9, fill: '#64748b' }} tickFormatter={formatarNumeroGrafico} />
+                          <Radar name="Estabelecimentos" dataKey="Estabelecimentos" stroke="#2E7D32" fill="#2E7D32" fillOpacity={0.35} dot={{ r: 3, fill: "#2E7D32" }} />
+                          <Tooltip
+                            formatter={(val: number | string) => {
+                              const num = parseNumericValue(val);
+                              const pct =
+                                totalEstabelecimentosCity > 0
+                                  ? ((num / totalEstabelecimentosCity) * 100).toFixed(1).replace(".", ",")
+                                  : "0,0";
+                              return [`${formatarNumeroGrafico(num)} (${pct}%)`, "Estabelecimentos"];
+                            }}
+                            contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                          />
                         </RadarChart>
                       </ResponsiveContainer>
                     )}
                   </div>
                 </div>
 
-                {/* Composed Chart */}
+                {/* Gráfico Comparativo: Estabelecimentos vs. Funcionários (Barras Agrupadas com dois eixos Y) */}
                 <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
                     <div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Empresas vs. Empregos</h3>
-                      <p className="text-xs text-slate-500">Proporção entre CNPJs e força de trabalho</p>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Estabelecimentos vs. Funcionários</h3>
+                      <p className="text-xs text-slate-500">Comparação setorial entre estabelecimentos ativos e força de trabalho</p>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded bg-[#359830]" /> Empresas</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#C90C0F]" /> Vínculos</div>
+                    <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
+                      <div className="flex items-center gap-1.5" title="Eixo Y esquerdo: Estabelecimentos"><div className="w-2.5 h-2.5 rounded-full bg-[#2E7D32]" /> Estabelecimentos</div>
+                      <div className="flex items-center gap-1.5" title="Eixo Y direito: Funcionários"><div className="w-2.5 h-2.5 rounded-full bg-[#1976D2]" /> Funcionários</div>
                     </div>
                   </div>
                   <div className="h-64 w-full pt-2 relative">
                     {loadingRealData ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10"><RefreshCw className="animate-spin text-[#359830] h-6 w-6" /></div>
                     ) : combinedData.length === 0 ? (
-                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">Sem dados disponíveis</div>
+                      <div className="text-slate-600 text-sm h-full flex items-center justify-center">Sem dados disponíveis</div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={combinedData} margin={{ top: 10, right: -15, left: -20, bottom: 0 }}>
+                        <BarChart data={combinedData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                          <XAxis dataKey="Classificação" tick={{ fontSize: 10, fill: '#1D5C1B' }} axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#359830' }} axisLine={false} tickLine={false} orientation="left" />
-                          <YAxis yAxisId="right" tick={{ fontSize: 10, fill: '#C90C0F' }} axisLine={false} tickLine={false} orientation="right" />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-                          <Bar yAxisId="left" dataKey="Estabelecimentos" fill="#359830" radius={[4, 4, 0, 0]} barSize={20} name="Estabelecimentos" />
-                          <Line yAxisId="right" type="monotone" dataKey="Funcionarios" stroke="#C90C0F" strokeWidth={3} dot={{ r: 4, fill: "#C90C0F", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} name="Funcionários" />
-                        </ComposedChart>
+                          <XAxis
+                            dataKey="Classificação"
+                            interval={0}
+                            tick={{ fontSize: 10, fill: '#1D5C1B' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            yAxisId="left"
+                            tick={{ fontSize: 10, fill: '#2E7D32' }}
+                            axisLine={false}
+                            tickLine={false}
+                            orientation="left"
+                            tickFormatter={formatarNumeroGrafico}
+                            allowDecimals={false}
+                            width={45}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            tick={{ fontSize: 10, fill: '#1976D2' }}
+                            axisLine={false}
+                            tickLine={false}
+                            orientation="right"
+                            tickFormatter={formatarNumeroGrafico}
+                            allowDecimals={false}
+                            width={50}
+                          />
+                          <Tooltip
+                            formatter={(val: number | string, name: string) => [
+                              formatarNumeroGrafico(val),
+                              name === "Estabelecimentos"
+                                ? "Estabelecimentos (eixo esq.)"
+                                : "Funcionários (eixo dir.)"
+                            ]}
+                            contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                            cursor={{ fill: '#f1f5f9' }}
+                          />
+                          <Bar yAxisId="left" dataKey="Estabelecimentos" fill="#2E7D32" radius={[4, 4, 0, 0]} maxBarSize={24} name="Estabelecimentos" />
+                          <Bar yAxisId="right" dataKey="Funcionarios" fill="#1976D2" radius={[4, 4, 0, 0]} maxBarSize={24} name="Funcionários" />
+                        </BarChart>
                       </ResponsiveContainer>
                     )}
                   </div>
                 </div>
 
                 {/* Gráfico 3: Saldo de Empregos */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-3">
+                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative lg:col-span-2 xl:col-span-3">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
@@ -875,18 +1342,21 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                         Saldo mensal de contratações (Admissões menos Desligamentos)
                       </p>
                     </div>
-                    {/* Seletor de Ano */}
-                    {availableYears.length > 0 && (
-                      <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                        className="bg-slate-50 border border-[#5BAF56]/40 text-[#1D5C1B] text-sm font-semibold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#359830]/20 cursor-pointer"
-                      >
-                        {availableYears.map(year => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* Seletor de Ano */}
+                      {!loadingRealData && availableYears.length > 0 && (
+                        <select
+                          aria-label="Selecionar ano do Termômetro de Empregos"
+                          value={selectedYear}
+                          onChange={(e) => setSelectedYear(e.target.value)}
+                          className="bg-slate-50 border border-[#5BAF56]/40 text-[#1D5C1B] text-sm font-semibold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#359830]/20 cursor-pointer"
+                        >
+                          {availableYears.map((year) => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
 
                   <div className="h-60 w-full pt-2 relative">
@@ -895,13 +1365,13 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                         <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
                       </div>
                     ) : realPostos.length === 0 ? (
-                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">Sem dados de postos para este ano</div>
+                      <div className="text-slate-600 text-sm h-full flex items-center justify-center">Sem dados de postos para este ano</div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={realPostos} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <BarChart data={realPostos} margin={{ top: 10, right: 15, left: 0, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
                           <XAxis
-                            dataKey="Mês"
+                            dataKey="MesLabel"
                             tick={{ fontSize: 11, fill: '#1D5C1B' }}
                             axisLine={false}
                             tickLine={false}
@@ -910,29 +1380,42 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                             tick={{ fontSize: 11, fill: '#1D5C1B' }}
                             axisLine={false}
                             tickLine={false}
+                            tickFormatter={formatarNumeroGrafico}
+                            allowDecimals={false}
+                            domain={[(dataMin: number) => Math.min(0, dataMin), (dataMax: number) => Math.max(0, dataMax)]}
+                            width={45}
                           />
-                          {/* Tooltip com redundância textual e semântica para acessibilidade a daltônicos */}
+                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" ifOverflow="extendDomain" />
                           <Tooltip
                             formatter={(val: number | string) => {
-                              const num = Number(val) || 0;
+                              const num = parseNumericValue(val);
                               const sinal = num > 0 ? "+" : "";
-                              const status = num >= 0 ? "Admissões Líquidas (Crescimento)" : "Desligamentos Líquidos (Retração)";
-                              return [`${sinal}${num} vagas (${status})`, "Saldo Mensal"];
+                              const status =
+                                num > 0
+                                  ? "Admissões Líquidas (Crescimento)"
+                                  : num < 0
+                                    ? "Desligamentos Líquidos (Retração)"
+                                    : "Saldo Neutro (Estabilidade)";
+                              return [`${sinal}${formatarNumeroGrafico(num)} vagas (${status})`, "Saldo Mensal"];
                             }}
-                            labelFormatter={(label) => `Mês: ${label}`}
+                            labelFormatter={(_, payload) => {
+                              const item = payload?.[0]?.payload as MonthlySaldoItem | undefined;
+                              return item?.MesCompleto || "";
+                            }}
                             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
                             cursor={{ fill: '#f1f5f9' }}
                           />
                           <Bar
                             dataKey="Saldo"
                             radius={[4, 4, 4, 4]}
+                            maxBarSize={36}
                           >
-                            {
-                              // Cores semanticas de alto contraste acessivel (Verde Esmeralda e Vermelho Carmim)
-                              realPostos.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={Number(entry.Saldo) >= 0 ? '#2E7D32' : '#D32F2F'} />
-                              ))
-                            }
+                            {realPostos.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.Saldo > 0 ? '#2E7D32' : entry.Saldo < 0 ? '#D32F2F' : '#64748b'}
+                              />
+                            ))}
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>

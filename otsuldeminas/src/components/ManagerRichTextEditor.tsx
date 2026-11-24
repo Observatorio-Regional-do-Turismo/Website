@@ -51,7 +51,11 @@ export function ManagerRichTextEditor({ label, value, onChange }: ManagerRichTex
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-[#359830] focus-within:ring-2 focus-within:ring-[#359830]/20">
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2" role="toolbar" aria-label={`Ferramentas de ${label}`}>
+      <div
+        className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2"
+        role="toolbar"
+        aria-label={`Ferramentas de ${label}`}
+      >
         {tools.map(({ label: toolLabel, command, value: commandValue, icon: Icon }) => (
           <button
             key={toolLabel}
@@ -84,7 +88,7 @@ export function ManagerRichTextEditor({ label, value, onChange }: ManagerRichTex
         aria-label={label}
         aria-multiline="true"
         onInput={(event) => onChange(event.currentTarget.innerHTML)}
-        className="min-h-48 max-h-[32rem] overflow-y-auto px-4 py-3 text-sm leading-6 text-slate-800 outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-emerald-600 [&_blockquote]:pl-3 [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-bold [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6"
+        className="rich-text-content min-h-48 max-h-[32rem] overflow-y-auto px-4 py-3 text-sm leading-6 text-slate-800 outline-none"
       />
     </div>
   );

@@ -31,7 +31,7 @@ import axios from "axios";
 import { getWebsiteApiBaseUrl } from "@/lib/website-api";
 import { submitInscricao, TipoVinculo, ModuloGestao, InscricaoResponse } from "@/lib/inscricao-api";
 
-// Cidades de referência do Sul de Minas caso a API esteja offline
+// Cidades de referência caso a API esteja offline
 const DEFAULT_CIDADES = [
   "Alfenas",
   "Andradas",
@@ -64,7 +64,7 @@ const DEFAULT_CIDADES = [
   "Varginha",
 ];
 
-// IGRs de referência do Sul de Minas
+// IGRs de referência
 const DEFAULT_IGRS = [
   "Circuito Turístico das Águas",
   "Circuito Turístico Caminhos Gerais",
@@ -137,7 +137,7 @@ export function InscricaoGestorForm() {
             .filter((n?: string): n is string => Boolean(n));
           if (nomes.length > 0) {
             const unique = Array.from(new Set([...nomes, ...DEFAULT_CIDADES])).sort((a, b) =>
-              a.localeCompare(b, "pt-BR")
+              a.localeCompare(b, "pt-BR"),
             );
             setCidadesList(unique);
           }
@@ -150,7 +150,7 @@ export function InscricaoGestorForm() {
             .filter((n?: string): n is string => Boolean(n));
           if (nomes.length > 0) {
             const unique = Array.from(new Set([...nomes, ...DEFAULT_IGRS])).sort((a, b) =>
-              a.localeCompare(b, "pt-BR")
+              a.localeCompare(b, "pt-BR"),
             );
             setIgrsList(unique);
           }
@@ -283,7 +283,7 @@ export function InscricaoGestorForm() {
       setErrorMsg(
         err instanceof Error
           ? err.message
-          : "Erro ao enviar a solicitação. Tente novamente mais tarde."
+          : "Erro ao enviar a solicitação. Tente novamente mais tarde.",
       );
     } finally {
       setSubmitting(false);
@@ -364,18 +364,19 @@ export function InscricaoGestorForm() {
 
         <div className="py-6 space-y-4 text-slate-600 text-sm leading-relaxed">
           <p className="font-medium text-slate-800 text-base">
-            Obrigado, <strong className="text-[#1D5C1B]">{nome}</strong>! Sua solicitação de cadastro de gestor foi registrada.
+            Obrigado, <strong className="text-[#1D5C1B]">{nome}</strong>! Sua solicitação de
+            cadastro de gestor foi registrada.
           </p>
-          <p>
-            {successResponse.message}
-          </p>
+          <p>{successResponse.message}</p>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <span className="font-bold text-slate-500 uppercase tracking-wider block">
                 Solicitante:
               </span>
-              <span className="font-semibold text-slate-800">{nome} ({cargo})</span>
+              <span className="font-semibold text-slate-800">
+                {nome} ({cargo})
+              </span>
             </div>
             <div>
               <span className="font-bold text-slate-500 uppercase tracking-wider block">
@@ -389,8 +390,10 @@ export function InscricaoGestorForm() {
               </span>
               <span className="font-semibold text-[#1D5C1B] capitalize">
                 {tipoVinculo === "ambas" ? "Cidade e IGR" : tipoVinculo}
-                {(selectedCidade || outraCidade) && ` • ${selectedCidade === "outro" ? outraCidade : selectedCidade}`}
-                {(selectedIgr || outraIgr) && ` • ${selectedIgr === "outro" ? outraIgr : selectedIgr}`}
+                {(selectedCidade || outraCidade) &&
+                  ` • ${selectedCidade === "outro" ? outraCidade : selectedCidade}`}
+                {(selectedIgr || outraIgr) &&
+                  ` • ${selectedIgr === "outro" ? outraIgr : selectedIgr}`}
               </span>
             </div>
             <div>
@@ -411,7 +414,8 @@ export function InscricaoGestorForm() {
               <p className="font-bold text-[#1D5C1B]">Ativação das suas credenciais:</p>
               <p className="mt-0.5">
                 Assim que a moderação aceitar a solicitação, sua conta será liberada com o e-mail{" "}
-                <strong>{finalEmailCadastro}</strong> e a senha escolhida. Você receberá a confirmação por e-mail.
+                <strong>{finalEmailCadastro}</strong> e a senha escolhida. Você receberá a
+                confirmação por e-mail.
               </p>
             </div>
           </div>
@@ -442,12 +446,15 @@ export function InscricaoGestorForm() {
           <ShieldCheck className="h-3.5 w-3.5 text-[#359830]" />
           Solicitação de Cadastro de Gestor
         </div>
-        <h2 id={formHeadingId} className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h2
+          id={formHeadingId}
+          className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight"
+        >
           Formulário de Inscrição & Acesso
         </h2>
         <p className="mt-2 text-sm text-slate-600 max-w-2xl leading-relaxed">
-          Preencha os dados abaixo para solicitar credenciais de acesso ao painel de gestão do Observatório.
-          Você pode definir suas permissões desejadas e criar seu login e senha.
+          Preencha os dados abaixo para solicitar credenciais de acesso ao painel de gestão do
+          Observatório. Você pode definir suas permissões desejadas e criar seu login e senha.
         </p>
       </div>
 
@@ -465,7 +472,6 @@ export function InscricaoGestorForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8" aria-labelledby={formHeadingId}>
-        
         {/* SEÇÃO 1: TIPO DE VÍNCULO (Cidade, IGR, Ambas) */}
         <div className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -530,7 +536,9 @@ export function InscricaoGestorForm() {
               <div className="flex items-center justify-between">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    tipoVinculo === "igr" ? "bg-[#359830] text-white shadow-sm" : "bg-slate-100 text-slate-500"
+                    tipoVinculo === "igr"
+                      ? "bg-[#359830] text-white shadow-sm"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   <Layers className="h-5 w-5" />
@@ -546,7 +554,9 @@ export function InscricaoGestorForm() {
                 </div>
               </div>
               <div>
-                <span className="font-bold text-slate-900 text-sm block">IGR (Instância Regional)</span>
+                <span className="font-bold text-slate-900 text-sm block">
+                  IGR (Instância Regional)
+                </span>
                 <span className="text-xs text-slate-500 mt-0.5 block">
                   Circuito turístico ou governança regional.
                 </span>
@@ -566,7 +576,9 @@ export function InscricaoGestorForm() {
               <div className="flex items-center justify-between">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    tipoVinculo === "ambas" ? "bg-[#359830] text-white shadow-sm" : "bg-slate-100 text-slate-500"
+                    tipoVinculo === "ambas"
+                      ? "bg-[#359830] text-white shadow-sm"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   <HeartHandshake className="h-5 w-5" />
@@ -664,12 +676,14 @@ export function InscricaoGestorForm() {
         <div className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <label className="block text-sm font-bold text-slate-900">
-              2. Áreas de Gestão e Publicação <span className="text-xs font-normal text-slate-500">(Opcional)</span>
+              2. Áreas de Gestão e Publicação{" "}
+              <span className="text-xs font-normal text-slate-500">(Opcional)</span>
             </label>
             <span className="text-[11px] font-semibold text-slate-400">Passo 2 de 4</span>
           </div>
           <p className="text-xs text-slate-500">
-            Selecione quais áreas você deseja publicar. Você pode marcar Eventos, Notícias, ambas ou <strong>nenhuma das duas</strong> (para acesso institucional geral/indicadores):
+            Selecione quais áreas você deseja publicar. Você pode marcar Eventos, Notícias, ambas ou{" "}
+            <strong>nenhuma das duas</strong> (para acesso institucional geral/indicadores):
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -705,7 +719,8 @@ export function InscricaoGestorForm() {
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Cadastrar e publicar na agenda turística e calendário oficial de festividades da região.
+                  Cadastrar e publicar na agenda turística e calendário oficial de festividades da
+                  região.
                 </p>
               </div>
             </div>
@@ -742,7 +757,8 @@ export function InscricaoGestorForm() {
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Publicar matérias informativas, editais, comunicados e matérias do turismo regional.
+                  Publicar matérias informativas, editais, comunicados e matérias do turismo
+                  regional.
                 </p>
               </div>
             </div>
@@ -775,7 +791,8 @@ export function InscricaoGestorForm() {
               </span>
             ) : (
               <span className="text-slate-400 text-[11px]">
-                {modulos.length} {modulos.length === 1 ? "módulo selecionado" : "módulos selecionados"}
+                {modulos.length}{" "}
+                {modulos.length === 1 ? "módulo selecionado" : "módulos selecionados"}
               </span>
             )}
           </div>
@@ -885,14 +902,16 @@ export function InscricaoGestorForm() {
                 <KeyRound className="h-4 w-4" />
               </div>
               <label className="block text-sm font-bold text-slate-900">
-                4. Credenciais de Acesso (Login e Senha Desejada) <span className="text-[#C90C0F]">*</span>
+                4. Credenciais de Acesso (Login e Senha Desejada){" "}
+                <span className="text-[#C90C0F]">*</span>
               </label>
             </div>
             <span className="text-[11px] font-semibold text-slate-400">Passo 4 de 4</span>
           </div>
 
           <p className="text-xs text-slate-600">
-            Defina o e-mail de login e a senha que serão ativados assim que a coordenação aceitar sua solicitação.
+            Defina o e-mail de login e a senha que serão ativados assim que a coordenação aceitar
+            sua solicitação.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -919,7 +938,11 @@ export function InscricaoGestorForm() {
                   type="email"
                   required
                   disabled={usarMesmoEmail}
-                  placeholder={usarMesmoEmail ? email || "Preencha o e-mail no passo anterior..." : "Digite o e-mail que usará para entrar..."}
+                  placeholder={
+                    usarMesmoEmail
+                      ? email || "Preencha o e-mail no passo anterior..."
+                      : "Digite o e-mail que usará para entrar..."
+                  }
                   value={usarMesmoEmail ? email : emailCadastroCustom}
                   onChange={(e) => setEmailCadastroCustom(e.target.value)}
                   className={`w-full rounded-xl border py-2.5 pl-10 pr-3 text-sm focus:border-[#359830] focus:outline-none focus:ring-2 focus:ring-[#359830]/30 shadow-xs ${
@@ -984,7 +1007,11 @@ export function InscricaoGestorForm() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
                   title={showConfirmarSenha ? "Ocultar senha" : "Ver senha"}
                 >
-                  {showConfirmarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmarSenha ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
 
@@ -1006,7 +1033,10 @@ export function InscricaoGestorForm() {
 
           <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
             <Info className="h-3.5 w-3.5 text-[#359830] shrink-0" />
-            <span>Guarde estas credenciais. Elas serão habilitadas assim que a equipe aprovar sua solicitação.</span>
+            <span>
+              Guarde estas credenciais. Elas serão habilitadas assim que a equipe aprovar sua
+              solicitação.
+            </span>
           </p>
         </div>
 
@@ -1037,9 +1067,9 @@ export function InscricaoGestorForm() {
               className="mt-1 h-4 w-4 rounded border-slate-300 text-[#359830] focus:ring-[#359830]"
             />
             <span className="text-xs text-slate-600 leading-relaxed">
-              Declaro que represento oficialmente a entidade informada e solicito o cadastro de gestor
-              para avaliação da equipe do Observatório de Turismo. Estou ciente de que as credenciais
-              serão liberadas após validação dos dados.
+              Declaro que represento oficialmente a entidade informada e solicito o cadastro de
+              gestor para avaliação da equipe do Observatório de Turismo. Estou ciente de que as
+              credenciais serão liberadas após validação dos dados.
             </span>
           </label>
         </div>
@@ -1064,7 +1094,8 @@ export function InscricaoGestorForm() {
             )}
           </button>
           <p className="mt-2 text-[11px] text-slate-500">
-            * O envio deste formulário é submetido à moderação da equipe para aceitação e ativação das credenciais informadas.
+            * O envio deste formulário é submetido à moderação da equipe para aceitação e ativação
+            das credenciais informadas.
           </p>
         </div>
       </form>

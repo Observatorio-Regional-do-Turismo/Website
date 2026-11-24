@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  X,
-  Building2,
-  MapPin,
-  ChevronRight,
-  Layers
-} from "lucide-react";
+import { X, Building2, MapPin, ChevronRight, Layers } from "lucide-react";
 import axios from "axios";
+import { RichTextContent } from "@/components/RichTextContent";
+import { ImageGalleryCarousel } from "@/components/ImageGalleryCarousel";
+import { ShareButton } from "@/components/ShareButton";
 
 interface IGRDetalhesModalProps {
   igr: ApiIGR | null;
@@ -18,7 +15,6 @@ interface IGRDetalhesModalProps {
 }
 
 export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModalProps) {
-  const [imageError, setImageError] = useState(false);
   const [igrDetalhesApi, setIgrDetalhesApi] = useState<ApiIGR | null>(null);
 
   useEffect(() => {
@@ -28,17 +24,23 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
     if (!igr) return;
 
     const rawUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!rawUrl) return () => { active = false; };
+    if (!rawUrl)
+      return () => {
+        active = false;
+      };
 
     const baseUrl = rawUrl.trim().replace(/\/$/, "");
-    axios.get<ApiIGR>(`${baseUrl}/igrs/${encodeURIComponent(igr.id)}/`)
+    axios
+      .get<ApiIGR>(`${baseUrl}/igrs/${encodeURIComponent(igr.id)}/`)
       .catch(() => axios.get<ApiIGR>(`${baseUrl}/igr/${encodeURIComponent(igr.id)}/`))
       .then((response) => {
         if (active && response?.data) setIgrDetalhesApi(response.data);
       })
-      .catch(() => { });
+      .catch(() => {});
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [igr]);
 
   useEffect(() => {
@@ -54,7 +56,6 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
   useEffect(() => {
     if (igr) {
       document.body.style.overflow = "hidden";
-      setImageError(false);
     }
     return () => {
       document.body.style.overflow = "unset";
@@ -65,24 +66,24 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
 
   const currentIgr = igrDetalhesApi || igr;
 
-  // Filtrar cidades associadas a esta IGR (por ID ou nome/slug)
-  const memberCities = cidades.filter(c => {
+  // Filtrar cidades associadas a esta IGR (suporta múltiplas IGRs por cidade)
+  const memberCities = cidades.filter((c) => {
+    if (Array.isArray(c.igrs) && c.igrs.length > 0) {
+      return c.igrs.some(
+        (i) => String(i.id) === String(currentIgr.id) || i.slug === currentIgr.slug,
+      );
+    }
     if (c.igr !== undefined && c.igr !== null) {
       return String(c.igr) === String(currentIgr.id) || String(c.igr) === String(currentIgr.slug);
     }
     return false;
   });
 
-  const imagens = (currentIgr.imagens && Array.isArray(currentIgr.imagens) && currentIgr.imagens.length > 0)
-    ? currentIgr.imagens
-    : (igr.imagens && Array.isArray(igr.imagens) ? igr.imagens : []);
-
-  const coverImage = imagens.length > 0
-    ? (imagens.find(img => img.is_cover)?.image || imagens[0]?.image)
-    : null;
+  const galleryImages =
+    currentIgr.imagens && currentIgr.imagens.length > 0 ? currentIgr.imagens : igr.imagens;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
@@ -90,78 +91,52 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
       />
 
       {/* Container do Modal */}
-      <div className="relative bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
-
+      <div className="relative bg-white w-full max-w-[96vw] xl:max-w-[1440px] max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
         {/* Botão Fechar Flutuante */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md transition-all shadow-lg focus:outline-none"
+          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md transition-all shadow-lg focus:outline-none cursor-pointer"
           title="Fechar"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Hero do Modal */}
-        <div className="relative h-48 sm:h-64 w-full bg-slate-900 shrink-0 overflow-hidden">
-          {!imageError && coverImage ? (
-            <img
-              src={coverImage}
-              alt={currentIgr.name}
-              className="w-full h-full object-cover object-center brightness-95"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1D5C1B] to-[#287524] text-white">
-              <Building2 className="h-14 w-14 text-white/40 mb-2" />
-              <span className="text-xs uppercase font-bold tracking-widest text-emerald-200">IGR</span>
-            </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
-
-          <div className="absolute bottom-5 left-5 right-5 z-20">
+        {/* Hero + Galeria do Modal */}
+        <ImageGalleryCarousel
+          imagens={galleryImages}
+          title={currentIgr.name}
+          heightClass="h-56 sm:h-72 lg:h-80"
+          fallbackIcon={<Building2 className="h-14 w-14 text-white/40 mb-2" />}
+          fallbackSubtitle="Instância de Governança Regional"
+        >
+          <div className="absolute bottom-5 left-5 right-5 sm:left-8 sm:right-8 z-20 pointer-events-none">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/80 text-white text-xs font-bold uppercase tracking-wider mb-2 backdrop-blur-md">
               <Layers className="h-3.5 w-3.5" />
               IGR
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">
               {currentIgr.name}
             </h2>
           </div>
-        </div>
+        </ImageGalleryCarousel>
 
         {/* Conteúdo Rolável */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8">
-
           {/* Descrição & Propósito */}
           <div className="space-y-3">
-            <h3 className="text-lg font-bold text-slate-800">
-              Introdução & Atuação da Entidade
-            </h3>
-            {(currentIgr.description?.trim() && currentIgr.description !== "string") ? (
-              <div
-                className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-600 sm:text-base"
-                dangerouslySetInnerHTML={{ __html: currentIgr.description }}
-              />
-            ) : (
-              <p className="text-sm leading-relaxed text-slate-600 sm:text-base">
-                Informações detalhadas sobre esta IGR serão atualizadas em breve.
-              </p>
-            )}
+            <h3 className="text-lg font-bold text-slate-800">Introdução & Atuação da Entidade</h3>
+            <RichTextContent
+              html={currentIgr.description}
+              fallback="Informações detalhadas sobre esta IGR serão atualizadas em breve."
+            />
           </div>
-
-
 
           {/* Municípios Integrantes */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">
-                  Municípios Integrantes
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Cidades associadas a esta IGR
-                </p>
+                <h3 className="text-lg font-bold text-slate-800">Municípios Integrantes</h3>
+                <p className="text-xs text-slate-500">Cidades associadas a esta IGR</p>
               </div>
               {memberCities.length > 0 && (
                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
@@ -179,7 +154,7 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
                 {memberCities.map((cidade) => (
                   <Link
                     key={cidade.id || cidade.slug}
-                    href={`/cidades?cidade=${encodeURIComponent(cidade.slug || cidade.name)}`}
+                    href={`/cidades/${encodeURIComponent(cidade.slug || String(cidade.id))}`}
                     className="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-primary/40 hover:shadow-sm transition-all group flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -194,22 +169,22 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
               </div>
             )}
           </div>
-
         </div>
 
         {/* Footer do Modal */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>Observatório de Turismo do Sul de Minas Gerais</span>
+        <div className="p-4 sm:px-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-3">
+            <ShareButton path={`/selos?id=${currentIgr.id}`} />
+            <span className="hidden sm:inline">Observatório Regional do Turismo</span>
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition-colors"
+            className="px-5 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition-colors cursor-pointer"
           >
             Fechar
           </button>
         </div>
-
       </div>
-
     </div>
   );
 }

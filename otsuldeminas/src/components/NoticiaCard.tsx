@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Newspaper, Calendar, MapPin, Layers, Sparkles, ArrowRight } from "lucide-react";
+import { formatarDataCurta } from "@/lib/formatters";
+import { getCoverImage } from "@/lib/utils";
 
 interface NoticiaCardProps {
   noticia: ApiNoticia;
@@ -27,23 +29,8 @@ export function NoticiaCard({
     else if (onSelect) onSelect(noticia);
   };
 
-  // Format date
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(d);
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const coverImage = (noticia.imagens && noticia.imagens.length > 0)
-    ? (noticia.imagens.find((i) => i.is_cover)?.image || noticia.imagens[0]?.image)
-    : (noticia.image || null);
+  const formatDate = formatarDataCurta;
+  const coverImage = getCoverImage(noticia.imagens, noticia.image);
 
   if (variant === "small") {
     return (
@@ -68,7 +55,9 @@ export function NoticiaCard({
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#EAF4E9] via-white to-[#EAF4E9] text-slate-400 p-2">
               <Newspaper className="h-6 w-6 text-[#359830]/40 mb-1" />
-              <span className="text-[10px] font-semibold text-slate-500 line-clamp-1">{noticia.category || "Notícia"}</span>
+              <span className="text-[10px] font-semibold text-slate-500 line-clamp-1">
+                {noticia.category || "Notícia"}
+              </span>
             </div>
           )}
 
@@ -194,7 +183,9 @@ export function NoticiaCard({
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#EAF4E9] via-white to-[#EAF4E9] text-slate-400 p-4">
             <Newspaper className="h-8 w-8 text-[#359830]/40 mb-1" />
-            <span className="text-xs font-semibold text-slate-500 line-clamp-1">{noticia.category || "Notícia"}</span>
+            <span className="text-xs font-semibold text-slate-500 line-clamp-1">
+              {noticia.category || "Notícia"}
+            </span>
           </div>
         )}
 

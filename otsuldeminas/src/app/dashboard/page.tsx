@@ -8,6 +8,7 @@ import {
   ReferenceLine
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FilterBar } from "@/components/FilterBar";
 import { Header } from "@/components/Header";
 import {
   PieChart as PieChartIcon,
@@ -480,7 +481,14 @@ export default function Dashboard() {
 
     try {
       if (forceRefresh) {
-        clearAnalyticsCache();
+        const failedTypes = (["estabelecimentos", "funcionarios", "estoque", "postos"] as const).filter(
+          (t) => hasFetchError(t)
+        );
+        if (failedTypes.length > 0 && failedTypes.length < 4) {
+          failedTypes.forEach((t) => clearAnalyticsCache(t));
+        } else {
+          clearAnalyticsCache();
+        }
       }
       if (!isActiveRequest()) return;
 
@@ -1128,11 +1136,14 @@ export default function Dashboard() {
   return (
     <div id="dashboard-main" className="min-h-screen bg-background pb-20">
       {/* Header com Background Padronizado */}
-      <Header />
+      <Header
+        badge="Inteligência de Dados"
+        title="Visão Geral & Indicadores"
+        subtitle="Acompanhe estabelecimentos, força de trabalho e evolução temporal dos municípios."
+      />
 
       {/* Seção de Filtro: Busca Inteligente & Chips */}
-      <div className="no-export print:hidden bg-site-surface border-b border-slate-200 shadow-sm sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+      <FilterBar containerClassName="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div ref={searchDropdownRef} className="relative flex-1 w-full max-w-md">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1243,8 +1254,7 @@ export default function Dashboard() {
               </>
             )}
           </div>
-        </div>
-      </div>
+      </FilterBar>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
         {/* Aviso explícito em caso de indisponibilidade total ou parcial da API */}
@@ -1870,6 +1880,7 @@ export default function Dashboard() {
                       />
                       <ReferenceLine y={0} stroke="#64748b" strokeDasharray="4 4" ifOverflow="extendDomain" />
                       <Tooltip
+                        cursor={{ fill: "#EAF4E9" }}
                         labelFormatter={(label) => formatTooltipDate(String(label))}
                         formatter={(value: number | string) => {
                           const num = parseNumericValue(value);
@@ -2024,11 +2035,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Rodapé */}
-      <footer className="mt-16 pt-8 pb-4 border-t border-slate-200 text-center">
-        <p className="text-sm text-slate-600">Observatório de Turismo do Sul de Minas Gerais © 2026</p>
-      </footer>
     </div>
   );
 }

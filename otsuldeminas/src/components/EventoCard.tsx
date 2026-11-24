@@ -1,28 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, MapPin, ArrowRight, Sparkles } from "lucide-react";
+import { CalendarDays, MapPin, ArrowRight, Sparkles, Navigation } from "lucide-react";
+import { formatarDataHoraCurta } from "@/lib/formatters";
+import { getCoverImage, stripHtml } from "@/lib/utils";
 
 interface EventoCardProps {
   evento: ApiEventos;
+  distanceKm?: number | null;
   onClick?: (evento: ApiEventos) => void;
   onSelect?: (evento: ApiEventos) => void;
 }
 
-function formatCardDate(value?: string) {
-  if (!value) return "Data a definir";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Data a definir";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
+export function EventoCard({ evento, distanceKm, onClick, onSelect }: EventoCardProps) {
   const [imageError, setImageError] = useState(false);
 
   const handleClick = () => {
@@ -30,9 +20,7 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
     else if (onSelect) onSelect(evento);
   };
 
-  const cover =
-    evento.imagens?.find((image) => image.is_cover)?.image ||
-    evento.imagens?.[0]?.image;
+  const cover = getCoverImage(evento.imagens);
 
   const now = Date.now();
   const start = evento.start_date ? new Date(evento.start_date).getTime() : NaN;
@@ -40,10 +28,7 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
   const isPast = !Number.isNaN(end) && end < now;
   const isOngoing = !Number.isNaN(start) && !Number.isNaN(end) && now >= start && now <= end;
 
-  const cleanDescription = (evento.description || "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const cleanDescription = stripHtml(evento.description);
 
   return (
     <article
@@ -58,7 +43,6 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
       }}
       className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-[#359830]/50 transition-all duration-300 flex flex-col overflow-hidden text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#359830]/40 relative"
     >
-      {/* Imagem do Evento */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 shrink-0">
         {!imageError && cover ? (
           <img
@@ -77,10 +61,8 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
           </div>
         )}
 
-        {/* Gradiente sobre a imagem */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/15 pointer-events-none" />
 
-        {/* Status no Topo */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
           {isOngoing ? (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
@@ -105,16 +87,24 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
             </span>
           )}
         </div>
+
+        {distanceKm !== null && distanceKm !== undefined && (
+          <div className="absolute bottom-2.5 left-3 z-10">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/95 text-[#1D5C1B] text-[10px] font-bold shadow-sm">
+              <Navigation className="h-2.5 w-2.5 text-[#359830]" />
+              {distanceKm < 1 ? "< 1 km" : `~${Math.round(distanceKm)} km`}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Corpo do Card */}
       <div className="flex-1 p-5 flex flex-col justify-between space-y-3">
         <div className="space-y-2">
           <p className="flex items-center gap-1.5 text-xs font-bold text-[#1D5C1B]">
             <CalendarDays className="h-4 w-4 shrink-0 text-[#359830]" />
             <span>
-              {formatCardDate(evento.start_date)}
-              {evento.end_date ? ` – ${formatCardDate(evento.end_date)}` : ""}
+              {formatarDataHoraCurta(evento.start_date)}
+              {evento.end_date ? ` – ${formatarDataHoraCurta(evento.end_date)}` : ""}
             </span>
           </p>
 
@@ -129,10 +119,9 @@ export function EventoCard({ evento, onClick, onSelect }: EventoCardProps) {
           )}
         </div>
 
-        {/* Rodapé do Card com indicação interativa */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-slate-400">
-            {evento.cidade_name || "Sul de Minas"}
+            {evento.cidade_name || "Regional"}
           </span>
           <span className="inline-flex items-center text-xs font-bold text-[#359830] group-hover:text-[#C90C0F] gap-1 transition-colors">
             Ver detalhes

@@ -1,18 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { 
-  X, 
-  Calendar, 
-  MapPin, 
-  Layers, 
-  Sparkles, 
-  User, 
-  Tag, 
-  Share2, 
-  Check, 
-  Newspaper 
-} from "lucide-react";
+import { useEffect } from "react";
+import { X, Calendar, MapPin, Layers, Sparkles, User, Tag, Newspaper } from "lucide-react";
+import { RichTextContent } from "@/components/RichTextContent";
+import { ImageGalleryCarousel } from "@/components/ImageGalleryCarousel";
+import { ShareButton } from "@/components/ShareButton";
+import { formatarDataHoraCurta } from "@/lib/formatters";
 
 interface NoticiaModalProps {
   noticia: ApiNoticia | null;
@@ -20,9 +13,6 @@ interface NoticiaModalProps {
 }
 
 export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
-  const [copied, setCopied] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -34,7 +24,6 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
   useEffect(() => {
     if (noticia) {
       document.body.style.overflow = "hidden";
-      setImageError(false);
     }
     return () => {
       document.body.style.overflow = "unset";
@@ -43,75 +32,39 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
 
   if (!noticia) return null;
 
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      }).format(d);
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const handleShare = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const coverImage = (noticia.imagens && noticia.imagens.length > 0)
-    ? (noticia.imagens.find((i) => i.is_cover)?.image || noticia.imagens[0]?.image)
-    : (noticia.image || null);
+  const formatDate = formatarDataHoraCurta;
+  const sharePath = `/noticias?id=${encodeURIComponent(String(noticia.id))}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" 
+      <div
+        className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Modal Container */}
-      <div className="relative bg-white w-full max-w-3xl max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
-        
+      <div className="relative bg-white w-full max-w-[96vw] xl:max-w-[1440px] max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-200 border border-slate-200">
         {/* Botão Fechar */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/60 text-white hover:bg-[#C90C0F] backdrop-blur-md transition-all shadow-lg focus:outline-none"
+          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/60 text-white hover:bg-[#C90C0F] backdrop-blur-md transition-all shadow-lg focus:outline-none cursor-pointer"
           title="Fechar"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Hero / Imagem de Capa */}
-        <div className="relative h-56 sm:h-72 w-full bg-slate-900 shrink-0 overflow-hidden">
-          {!imageError && coverImage ? (
-            <img
-              src={coverImage}
-              alt={noticia.title}
-              className="w-full h-full object-cover object-center brightness-95"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1D5C1B] to-[#287524] text-white p-6 text-center">
-              <Newspaper className="h-16 w-16 text-white/40 mb-2" />
-              <span className="text-xs uppercase font-bold tracking-widest text-emerald-200">
-                {noticia.category || "Observatório Sul de Minas"}
-              </span>
-            </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
-
+        {/* Hero / Galeria de Imagens */}
+        <ImageGalleryCarousel
+          imagens={noticia.imagens}
+          fallbackUrl={noticia.image}
+          title={noticia.title}
+          heightClass="h-60 sm:h-80 lg:h-96"
+          fallbackIcon={<Newspaper className="h-16 w-16 text-white/40 mb-2" />}
+          fallbackSubtitle={noticia.category || "Observatório Regional"}
+        >
           {/* Badges de Destaque / Categoria sobre o banner */}
-          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center gap-2">
+          <div className="absolute bottom-4 left-4 right-4 sm:left-8 sm:right-8 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
             {noticia.is_featured && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#C90C0F] text-white text-xs font-bold uppercase tracking-wider shadow-lg">
                 <Sparkles className="h-3.5 w-3.5" /> Destaque
@@ -128,11 +81,10 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
               </span>
             )}
           </div>
-        </div>
+        </ImageGalleryCarousel>
 
         {/* Conteúdo Rolável do Artigo */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6">
-          
           {/* Metadados: Data e Autor */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-4">
@@ -148,14 +100,7 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
               )}
             </div>
 
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-              title="Copiar link"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-[#359830]" /> : <Share2 className="h-3.5 w-3.5" />}
-              <span>{copied ? "Copiado!" : "Compartilhar"}</span>
-            </button>
+            <ShareButton path={sharePath} />
           </div>
 
           {/* Título Principal */}
@@ -171,13 +116,7 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
           )}
 
           {/* Corpo do Texto */}
-          <div className="prose prose-slate max-w-none text-sm sm:text-base text-slate-600 leading-relaxed">
-            {noticia.content ? (
-              <div className="text-justify" dangerouslySetInnerHTML={{ __html: noticia.content }} />
-            ) : (
-              <p className="text-justify">{noticia.summary}</p>
-            )}
-          </div>
+          <RichTextContent html={noticia.content || noticia.summary} className="text-justify" />
 
           {/* Tags */}
           {noticia.tags && noticia.tags.length > 0 && (
@@ -186,7 +125,7 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
                 <Tag className="h-3.5 w-3.5" /> Tags:
               </span>
               {noticia.tags.map((tag) => (
-                <span 
+                <span
                   key={tag}
                   className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold"
                 >
@@ -195,12 +134,11 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
               ))}
             </div>
           )}
-
         </div>
 
         {/* Rodapé do Modal */}
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>Observatório de Turismo do Sul de Minas Gerais</span>
+          <span>Observatório Regional do Turismo</span>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-[#359830] text-white font-bold rounded-xl hover:bg-[#1D5C1B] transition-colors"
@@ -208,7 +146,6 @@ export function NoticiaModal({ noticia, onClose }: NoticiaModalProps) {
             Concluído
           </button>
         </div>
-
       </div>
     </div>
   );

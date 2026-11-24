@@ -5,8 +5,10 @@ type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
-const ALLOWED_PATH = /^(auth\/(csrf|login|logout|session)|gestao\/(cidades|igrs|noticias)(\/\d+)?)\/?$/;
+const ALLOWED_PATH =
+  /^(auth\/(csrf|login|logout|session)|gestao\/(cidades(\/(igrs-disponiveis|\d+\/(vincular-igr|desvincular-igr))?)?|igrs(\/(cidades-disponiveis|\d+\/(vincular-cidade|desvincular-cidade))?)?|(noticias|eventos|pontos-turisticos|locais|imagens)(\/\d+)?|admin-gestores(\/\d+(\/alterar-senha)?)?|admin-cidades(\/\d+)?|admin-igrs(\/\d+)?|admin-estados|admin-tasks(\/(\d+(\/executar)?|logs))?))\/?$/;
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
+const MAX_BODY_BYTES = 12 * 1024 * 1024;
 
 async function proxyManagerRequest(request: NextRequest, context: RouteContext) {
   const { path } = await context.params;
@@ -16,7 +18,21 @@ async function proxyManagerRequest(request: NextRequest, context: RouteContext) 
     return NextResponse.json({ detail: "Rota de gestão não encontrada." }, { status: 404 });
   }
 
-  const upstreamUrl = new URL(`${pathString}/${request.nextUrl.search}`, `${getWebsiteApiBaseUrl()}/`);
+  let bodyBuffer: ArrayBuffer | undefined;
+  if (!["GET", "HEAD"].includes(request.method)) {
+    bodyBuffer = await request.arrayBuffer();
+    if (bodyBuffer.byteLength > MAX_BODY_BYTES) {
+      return NextResponse.json(
+        { detail: "Tamanho máximo da requisição excedido." },
+        { status: 413 },
+      );
+    }
+  }
+
+  const upstreamUrl = new URL(
+    `${pathString}/${request.nextUrl.search}`,
+    `${getWebsiteApiBaseUrl()}/`,
+  );
   const headers = new Headers();
   for (const name of ["cookie", "content-type", "origin", "referer", "x-csrftoken"]) {
     const value = request.headers.get(name);
@@ -26,7 +42,7 @@ async function proxyManagerRequest(request: NextRequest, context: RouteContext) 
   const upstream = await fetch(upstreamUrl, {
     method: request.method,
     headers,
-    body: ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer(),
+    body: bodyBuffer,
     cache: "no-store",
     redirect: "manual",
   });

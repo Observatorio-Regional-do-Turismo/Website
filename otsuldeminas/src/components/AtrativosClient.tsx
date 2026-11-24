@@ -99,7 +99,15 @@ export function AtrativosClient({
     const query = normalizeText(searchTerm);
     const items = initialAtrativos.filter((item) => {
       if (cidadeId && String(item.cidade) !== cidadeId) return false;
-      if (igrId && String(item.igr_id ?? "") !== igrId) return false;
+      if (
+        igrId &&
+        !(
+          (Array.isArray(item.igr_ids) && item.igr_ids.some((id) => String(id) === igrId)) ||
+          String(item.igr_id ?? "") === igrId
+        )
+      ) {
+        return false;
+      }
       if (category && normalizeText(item.category) !== normalizeText(category)) return false;
       if (onlyFeatured && !item.is_featured) return false;
 
@@ -131,7 +139,15 @@ export function AtrativosClient({
     return initialLocais
       .filter((loc) => {
         if (cidadeId && String(loc.cidade) !== cidadeId) return false;
-        if (igrId && String(loc.igr_id ?? "") !== igrId) return false;
+        if (
+          igrId &&
+          !(
+            (Array.isArray(loc.igr_ids) && loc.igr_ids.some((id) => String(id) === igrId)) ||
+            String(loc.igr_id ?? "") === igrId
+          )
+        ) {
+          return false;
+        }
         if (category && normalizeText(loc.categoria) !== normalizeText(category)) return false;
 
         if (!query) return true;

@@ -67,7 +67,9 @@ declare interface ApiCidade {
   state?: number | string;
   state_name?: string;
   igr?: number | string | null;
+  igr_ids?: number[];
   igr_name?: string | null;
+  igrs?: { id: number; name: string; slug: string }[];
   information?: ApiCidadeInformation | null;
   imagens?: ApiImages[];
   contatos?: ApiContacts[];
@@ -104,6 +106,7 @@ declare interface ApiPontoTuristico {
   cidade_slug?: string;
   cidade_state_name?: string;
   igr_id?: number | null;
+  igr_ids?: number[];
   igr_name?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
@@ -145,6 +148,7 @@ declare interface ApiEstabelecimentoGeo {
   cidade_slug?: string;
   cidade_state_name?: string;
   igr_id?: number | null;
+  igr_ids?: number[];
   igr_name?: string | null;
   latitude: number | string;
   longitude: number | string;
@@ -157,6 +161,7 @@ declare interface ApiMapaCidade {
   ibge_code?: string | null;
   state_name?: string | null;
   state_abbreviation?: string | null;
+  igr_ids?: number[];
   igr_name?: string | null;
   latitude: number | null;
   longitude: number | null;

@@ -8,10 +8,12 @@ import {
   AlertCircle,
   Building2,
   Check,
+  Database,
   KeyRound,
   Layers,
   LoaderCircle,
   LogOut,
+  MapPinned,
   Pencil,
   Search,
   ShieldCheck,
@@ -20,11 +22,17 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { AdminEntitiesSection } from "@/components/AdminEntitiesSection";
+import { AdminTasksSection } from "@/components/AdminTasksSection";
 import { Header } from "@/components/Header";
 import {
+  AdminCidadeRecord,
+  AdminIGRRecord,
   AdminManagerRecord,
   createAdminManager,
   deleteAdminManager,
+  getAdminCidades,
+  getAdminIgrs,
   getAdminManagers,
   getManagerSession,
   logoutManager,
@@ -32,8 +40,8 @@ import {
   resetAdminManagerPassword,
   updateAdminManager,
 } from "@/lib/manager-api";
-import { fetchAllPaginated } from "@/lib/website-api";
 
+type AdminTab = "gestores" | "entidades" | "tasks";
 type TypeFilter = "todos" | "cidade" | "igr";
 
 function extractValidationError(error: unknown): string {
@@ -51,10 +59,11 @@ function extractValidationError(error: unknown): string {
 
 export default function CoordenacaoPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<AdminTab>("gestores");
   const [session, setSession] = useState<ManagerSession | null>(null);
   const [managers, setManagers] = useState<AdminManagerRecord[]>([]);
-  const [cities, setCities] = useState<ApiCidade[]>([]);
-  const [igrs, setIgrs] = useState<ApiIGR[]>([]);
+  const [cities, setCities] = useState<AdminCidadeRecord[]>([]);
+  const [igrs, setIgrs] = useState<AdminIGRRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -87,6 +96,15 @@ export default function CoordenacaoPage() {
     setManagers(items);
   }, []);
 
+  const reloadCatalog = useCallback(async () => {
+    const [cityList, igrList] = await Promise.all([
+      getAdminCidades().catch(() => []),
+      getAdminIgrs().catch(() => []),
+    ]);
+    setCities(cityList.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+    setIgrs(igrList.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+  }, []);
+
   useEffect(() => {
     let active = true;
     async function bootstrap() {
@@ -98,8 +116,8 @@ export default function CoordenacaoPage() {
         }
         const [managerList, cityList, igrList] = await Promise.all([
           getAdminManagers(),
-          fetchAllPaginated<ApiCidade>("cidades/").catch(() => []),
-          fetchAllPaginated<ApiIGR>("igrs/").catch(() => []),
+          getAdminCidades().catch(() => []),
+          getAdminIgrs().catch(() => []),
         ]);
         if (!active) return;
         setSession(current);
@@ -261,8 +279,8 @@ export default function CoordenacaoPage() {
     <main className="flex min-h-screen flex-col bg-slate-50 pb-20">
       <Header
         badge="Coordenação Geral"
-        title="Gestão de Contas e Privilégios"
-        subtitle="Administre gestores de cidades e IGRs, atualize vínculos e redefina senhas com segurança."
+        title="Painel da Coordenação Master"
+        subtitle="Administre gestores, crie municípios e IGRs e controle as rotinas automatizadas de coleta de dados."
       />
 
       <section className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
@@ -326,278 +344,337 @@ export default function CoordenacaoPage() {
               </div>
             )}
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1.25fr)]">
-              {/* Formulário de Cadastro / Edição de Gestor */}
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                    <UserPlus className="h-5 w-5 text-[#1D5C1B]" />
-                    {editing ? `Editar gestor: ${editing.username}` : "Cadastrar novo gestor"}
-                  </h2>
-                  {editing && (
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                    >
-                      Novo gestor
-                    </button>
-                  )}
-                </div>
+            {/* Navegação por abas da Coordenação Master */}
+            <div className="mb-8 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+              {(
+                [
+                  { id: "gestores", label: "Gestores", count: managers.length, icon: Users },
+                  {
+                    id: "entidades",
+                    label: "Cidades & IGRs",
+                    count: cities.length + igrs.length,
+                    icon: MapPinned,
+                  },
+                  { id: "tasks", label: "Coletas de Dados", icon: Database },
+                ] as const
+              ).map((tab) => {
+                const active = activeTab === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setError("");
+                      setNotice("");
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+                      active
+                        ? "bg-[#1D5C1B] text-white shadow-sm"
+                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                    {"count" in tab && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-                <div className="grid gap-3.5 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Usuário (login)
-                    <input
-                      required
-                      maxLength={150}
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    E-mail
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Nome
-                    <input
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Sobrenome
-                    <input
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    />
-                  </label>
-                </div>
+            {activeTab === "entidades" && (
+              <AdminEntitiesSection
+                onCatalogChanged={reloadCatalog}
+                onNotice={setNotice}
+                onError={setError}
+              />
+            )}
 
-                <div className="grid gap-3.5 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Município vinculado
-                    <select
-                      value={cidadeId}
-                      onChange={(e) => setCidadeId(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    >
-                      <option value="">Nenhum município</option>
-                      {cities.map((c) => (
-                        <option key={c.id} value={String(c.id)}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    IGR vinculada
-                    <select
-                      value={igrId}
-                      onChange={(e) => setIgrId(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    >
-                      <option value="">Nenhuma IGR</option>
-                      {igrs.map((i) => (
-                        <option key={i.id} value={String(i.id)}>
-                          {i.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+            {activeTab === "tasks" && <AdminTasksSection onNotice={setNotice} onError={setError} />}
 
-                {!editing && (
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Senha inicial (mínimo 8 caracteres)
-                    <input
-                      required
-                      type="password"
-                      minLength={8}
-                      value={initialPassword}
-                      onChange={(e) => setInitialPassword(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                    />
-                  </label>
-                )}
-
-                <div className="flex flex-wrap gap-4 pt-1">
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={(e) => setIsActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1D5C1B]"
-                    />
-                    Conta ativa
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isStaff}
-                      onChange={(e) => setIsStaff(e.target.checked)}
-                      className="h-4 w-4 accent-[#1D5C1B]"
-                    />
-                    Acesso ao Django Admin
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+            {activeTab === "gestores" && (
+              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1.25fr)]">
+                {/* Formulário de Cadastro / Edição de Gestor */}
+                <form
+                  onSubmit={handleSubmit}
+                  className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
                 >
-                  {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                  {editing ? "Salvar alterações do gestor" : "Criar conta de gestor"}
-                </button>
-              </form>
-
-              {/* Listagem de Todos os Gestores */}
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
                     <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-[#1D5C1B]" />
-                      Gestores Cadastrados ({filteredManagers.length})
+                      <UserPlus className="h-5 w-5 text-[#1D5C1B]" />
+                      {editing ? `Editar gestor: ${editing.username}` : "Cadastrar novo gestor"}
                     </h2>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold">
-                      {(
-                        [
-                          { id: "todos", label: "Todos" },
-                          { id: "cidade", label: "Cidades" },
-                          { id: "igr", label: "IGRs" },
-                        ] as const
-                      ).map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setTypeFilter(opt.id)}
-                          className={`px-3 py-1 rounded-full cursor-pointer transition ${
-                            typeFilter === opt.id
-                              ? "bg-[#1D5C1B] text-white"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    {editing && (
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                      >
+                        Novo gestor
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3.5 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Usuário (login)
+                      <input
+                        required
+                        maxLength={150}
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      E-mail
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Nome
+                      <input
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Sobrenome
+                      <input
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3.5 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Município vinculado
+                      <select
+                        value={cidadeId}
+                        onChange={(e) => setCidadeId(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      >
+                        <option value="">Nenhum município</option>
+                        {cities.map((c) => (
+                          <option key={c.id} value={String(c.id)}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      IGR vinculada
+                      <select
+                        value={igrId}
+                        onChange={(e) => setIgrId(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      >
+                        <option value="">Nenhuma IGR</option>
+                        {igrs.map((i) => (
+                          <option key={i.id} value={String(i.id)}>
+                            {i.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  {!editing && (
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Senha inicial (mínimo 8 caracteres)
+                      <input
+                        required
+                        type="password"
+                        minLength={8}
+                        value={initialPassword}
+                        onChange={(e) => setInitialPassword(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                      />
+                    </label>
+                  )}
+
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(e) => setIsActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1D5C1B]"
+                      />
+                      Conta ativa
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isStaff}
+                        onChange={(e) => setIsStaff(e.target.checked)}
+                        className="h-4 w-4 accent-[#1D5C1B]"
+                      />
+                      Acesso ao Django Admin
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+                  >
+                    {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                    {editing ? "Salvar alterações do gestor" : "Criar conta de gestor"}
+                  </button>
+                </form>
+
+                {/* Listagem de Todos os Gestores */}
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-[#1D5C1B]" />
+                        Gestores Cadastrados ({filteredManagers.length})
+                      </h2>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        {(
+                          [
+                            { id: "todos", label: "Todos" },
+                            { id: "cidade", label: "Cidades" },
+                            { id: "igr", label: "IGRs" },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setTypeFilter(opt.id)}
+                            className={`px-3 py-1 rounded-full cursor-pointer transition ${
+                              typeFilter === opt.id
+                                ? "bg-[#1D5C1B] text-white"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por usuário, nome, e-mail, cidade ou IGR..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:bg-white focus:border-[#359830]"
+                      />
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por usuário, nome, e-mail, cidade ou IGR..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:bg-white focus:border-[#359830]"
-                    />
-                  </div>
-                </div>
+                  {filteredManagers.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                      Nenhum gestor encontrado com os filtros aplicados.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredManagers.map((item) => (
+                        <article
+                          key={item.id}
+                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-bold text-slate-900">{item.username}</h3>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  item.is_active
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-red-50 text-red-700"
+                                }`}
+                              >
+                                {item.is_active ? "Ativo" : "Inativo"}
+                              </span>
+                              {item.is_staff && (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
 
-                {filteredManagers.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                    Nenhum gestor encontrado com os filtros aplicados.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredManagers.map((item) => (
-                      <article
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-bold text-slate-900">{item.username}</h3>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                item.is_active
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-red-50 text-red-700"
-                              }`}
+                            {(item.first_name || item.last_name || item.email) && (
+                              <p className="text-xs text-slate-600">
+                                {[item.first_name, item.last_name].filter(Boolean).join(" ")}
+                                {item.email ? ` • ${item.email}` : ""}
+                              </p>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                              {item.cidade_name && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#1D5C1B] font-semibold">
+                                  <Building2 className="h-3 w-3" />
+                                  Cidade: {item.cidade_name}
+                                </span>
+                              )}
+                              {item.igr_name && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold">
+                                  <Layers className="h-3 w-3" />
+                                  IGR: {item.igr_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(item)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                             >
-                              {item.is_active ? "Ativo" : "Inativo"}
-                            </span>
-                            {item.is_staff && (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                                Admin
-                              </span>
-                            )}
+                              <Pencil className="h-3.5 w-3.5" />
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPasswordTarget(item);
+                                setNewPassword("");
+                                setConfirmPassword("");
+                                setPasswordError("");
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Trocar senha
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(item)}
+                              className="p-2 rounded-xl text-red-600 hover:bg-red-50 cursor-pointer"
+                              title="Excluir gestor"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
-
-                          {(item.first_name || item.last_name || item.email) && (
-                            <p className="text-xs text-slate-600">
-                              {[item.first_name, item.last_name].filter(Boolean).join(" ")}
-                              {item.email ? ` • ${item.email}` : ""}
-                            </p>
-                          )}
-
-                          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                            {item.cidade_name && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#1D5C1B] font-semibold">
-                                <Building2 className="h-3 w-3" />
-                                Cidade: {item.cidade_name}
-                              </span>
-                            )}
-                            {item.igr_name && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold">
-                                <Layers className="h-3 w-3" />
-                                IGR: {item.igr_name}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(item)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPasswordTarget(item);
-                              setNewPassword("");
-                              setConfirmPassword("");
-                              setPasswordError("");
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
-                          >
-                            <KeyRound className="h-3.5 w-3.5" />
-                            Trocar senha
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(item)}
-                            className="p-2 rounded-xl text-red-600 hover:bg-red-50 cursor-pointer"
-                            title="Excluir gestor"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </section>

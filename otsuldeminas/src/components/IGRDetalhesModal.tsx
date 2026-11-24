@@ -66,8 +66,13 @@ export function IGRDetalhesModal({ igr, cidades = [], onClose }: IGRDetalhesModa
 
   const currentIgr = igrDetalhesApi || igr;
 
-  // Filtrar cidades associadas a esta IGR (por ID ou nome/slug)
+  // Filtrar cidades associadas a esta IGR (suporta múltiplas IGRs por cidade)
   const memberCities = cidades.filter((c) => {
+    if (Array.isArray(c.igrs) && c.igrs.length > 0) {
+      return c.igrs.some(
+        (i) => String(i.id) === String(currentIgr.id) || i.slug === currentIgr.slug,
+      );
+    }
     if (c.igr !== undefined && c.igr !== null) {
       return String(c.igr) === String(currentIgr.id) || String(c.igr) === String(currentIgr.slug);
     }

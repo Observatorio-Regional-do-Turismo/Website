@@ -48,7 +48,11 @@ export function CidadesClient({
       result = result.filter((cidade) => String(cidade.state) === estadoId);
     }
     if (igrId) {
-      result = result.filter((cidade) => String(cidade.igr || "") === igrId);
+      result = result.filter(
+        (cidade) =>
+          (Array.isArray(cidade.igrs) && cidade.igrs.some((i) => String(i.id) === igrId)) ||
+          String(cidade.igr || "") === igrId,
+      );
     }
     result.sort((a, b) => {
       const comparison = a.name.localeCompare(b.name, "pt-BR");

@@ -6,7 +6,7 @@ type RouteContext = {
 };
 
 const ALLOWED_PATH =
-  /^(auth\/(csrf|login|logout|session)|gestao\/(cidades|igrs|noticias|eventos|pontos-turisticos|locais|imagens)(\/\d+)?|gestao\/admin-gestores(\/\d+(\/alterar-senha)?)?)\/?$/;
+  /^(auth\/(csrf|login|logout|session)|gestao\/(cidades(\/(igrs-disponiveis|\d+\/(vincular-igr|desvincular-igr))?)?|igrs(\/(cidades-disponiveis|\d+\/(vincular-cidade|desvincular-cidade))?)?|(noticias|eventos|pontos-turisticos|locais|imagens)(\/\d+)?|admin-gestores(\/\d+(\/alterar-senha)?)?|admin-cidades(\/\d+)?|admin-igrs(\/\d+)?|admin-estados|admin-tasks(\/(\d+(\/executar)?|logs))?))\/?$/;
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 

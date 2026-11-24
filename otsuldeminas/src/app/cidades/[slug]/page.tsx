@@ -163,15 +163,26 @@ export default async function CidadeDetailPage({ params }: { params: Promise<{ s
               <ArrowLeft className="h-4 w-4" />
               Voltar às cidades
             </Link>
-            {detailedCidade.igr && (
-              <Link
-                href={`/selos?id=${encodeURIComponent(String(detailedCidade.igr))}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm font-semibold text-[#1D5C1B] hover:bg-emerald-100 transition-colors"
-              >
-                <Layers className="h-4 w-4" />
-                {detailedCidade.igr_name || "Ver IGR"}
-              </Link>
-            )}
+            {Array.isArray(detailedCidade.igrs) && detailedCidade.igrs.length > 0
+              ? detailedCidade.igrs.map((igrItem) => (
+                  <Link
+                    key={igrItem.id}
+                    href={`/selos?id=${encodeURIComponent(String(igrItem.id))}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm font-semibold text-[#1D5C1B] hover:bg-emerald-100 transition-colors"
+                  >
+                    <Layers className="h-4 w-4" />
+                    {igrItem.name}
+                  </Link>
+                ))
+              : detailedCidade.igr && (
+                  <Link
+                    href={`/selos?id=${encodeURIComponent(String(detailedCidade.igr))}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm font-semibold text-[#1D5C1B] hover:bg-emerald-100 transition-colors"
+                  >
+                    <Layers className="h-4 w-4" />
+                    {detailedCidade.igr_name || "Ver IGR"}
+                  </Link>
+                )}
           </div>
 
           <ShareButton path={`/cidades/${encodeURIComponent(detailedCidade.slug)}`} />

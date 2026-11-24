@@ -72,6 +72,18 @@ export interface ManagerImagem {
   entity_id?: number;
 }
 
+export interface ManagerLinkedIgr {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface ManagerLinkedCidade {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface ManagerCity {
   id: number;
   name: string;
@@ -79,6 +91,7 @@ export interface ManagerCity {
   description: string;
   state: number;
   state_name: string;
+  igrs?: ManagerLinkedIgr[];
   imagens?: ManagerImagem[];
 }
 
@@ -87,7 +100,156 @@ export interface ManagerIGR {
   name: string;
   slug: string;
   description: string;
+  cidades?: ManagerLinkedCidade[];
   imagens?: ManagerImagem[];
+}
+
+export interface AvailableCityForIgr {
+  id: number;
+  name: string;
+  slug: string;
+  state_name: string;
+  igrs: { id: number; name: string }[];
+}
+
+export interface AdminEstadoRecord {
+  id: number;
+  name: string;
+  slug: string;
+  abbreviation: string;
+}
+
+export interface AdminIGRRecord {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  cidades_count: number;
+}
+
+export interface AdminIGRInput {
+  name: string;
+  slug?: string;
+  description?: string;
+}
+
+export interface AdminCidadeRecord {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  ibge_code: string | null;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  state: number;
+  state_name: string;
+  igrs: number[];
+  igrs_info: ManagerLinkedIgr[];
+}
+
+export interface AdminCidadeInput {
+  name: string;
+  slug?: string;
+  description?: string;
+  ibge_code?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+  state: number;
+  igrs?: number[];
+}
+
+export interface AdminTaskParamSpec {
+  name: "cidade_id" | "data" | "ano" | "mes";
+  label: string;
+  type: "int" | "month";
+  placeholder: string;
+}
+
+export interface AdminTaskCrontab {
+  minute: string;
+  hour: string;
+  day_of_month: string;
+  month_of_year: string;
+  day_of_week: string;
+}
+
+export interface AdminTaskInterval {
+  every: number;
+  period: "minutes" | "hours" | "days";
+}
+
+export interface AdminTaskClocked {
+  clocked_time: string;
+}
+
+export interface AdminTaskRecord {
+  id: number;
+  name: string;
+  label: string;
+  category: string;
+  task: string;
+  description: string;
+  task_description: string;
+  enabled: boolean;
+  one_off: boolean;
+  kwargs_dict: Record<string, unknown>;
+  allowed_params: AdminTaskParamSpec[];
+  schedule_type: "crontab" | "interval" | "clocked";
+  schedule_display: string;
+  crontab: AdminTaskCrontab | null;
+  interval: AdminTaskInterval | null;
+  clocked: AdminTaskClocked | null;
+  last_run_at: string | null;
+  total_run_count: number;
+  date_changed: string;
+}
+
+export interface AdminTaskUpdateInput {
+  enabled?: boolean;
+  one_off?: boolean;
+  schedule_type?: "crontab" | "interval" | "clocked";
+  crontab?: AdminTaskCrontab;
+  interval?: AdminTaskInterval;
+  clocked?: AdminTaskClocked;
+}
+
+export interface AdminTaskRunInput {
+  cidade_id?: number;
+  data?: string;
+  ano?: number;
+  mes?: number;
+}
+
+export interface AdminTaskRunResponse {
+  task_id: string | null;
+  task: string;
+  name: string;
+  kwargs: Record<string, unknown>;
+  detail: string;
+}
+
+export interface AdminTaskOperacaoLog {
+  id: number;
+  operacao: string;
+  arquivo: string;
+  data_referencia: string;
+  sucesso: boolean;
+  erro: string;
+  systimestamp: string;
+}
+
+export interface AdminTaskCeleryResult {
+  task_id: string;
+  task_name: string | null;
+  periodic_task_name: string | null;
+  status: string;
+  date_done: string | null;
+  traceback: string | null;
+}
+
+export interface AdminTaskLogsResponse {
+  operacoes: AdminTaskOperacaoLog[];
+  task_results: AdminTaskCeleryResult[];
 }
 
 export interface ManagerNews {
@@ -364,3 +526,102 @@ export async function resetAdminManagerPassword(
 }
 
 export const deleteAdminManager = (id: number) => deleteManagerEntity("admin-gestores", id);
+
+// Vínculos Cidade <-> IGR (Gestores)
+export async function getAvailableIgrsForCity(): Promise<ManagerLinkedIgr[]> {
+  const response = await axios.get<ManagerLinkedIgr[]>(managerUrl("cidades/igrs-disponiveis/"), {
+    withCredentials: true,
+    timeout: 15000,
+  });
+  return response.data;
+}
+
+export async function linkCityToIgr(cidadeId: number, igrId: number): Promise<ManagerCity> {
+  return managerRequest<ManagerCity>({
+    method: "POST",
+    url: managerUrl(`cidades/${cidadeId}/vincular-igr/`),
+    data: { igr_id: igrId },
+  });
+}
+
+export async function unlinkCityFromIgr(cidadeId: number, igrId: number): Promise<ManagerCity> {
+  return managerRequest<ManagerCity>({
+    method: "POST",
+    url: managerUrl(`cidades/${cidadeId}/desvincular-igr/`),
+    data: { igr_id: igrId },
+  });
+}
+
+export async function getAvailableCitiesForIgr(): Promise<AvailableCityForIgr[]> {
+  const response = await axios.get<AvailableCityForIgr[]>(managerUrl("igrs/cidades-disponiveis/"), {
+    withCredentials: true,
+    timeout: 15000,
+  });
+  return response.data;
+}
+
+export async function linkIgrToCity(igrId: number, cidadeId: number): Promise<ManagerIGR> {
+  return managerRequest<ManagerIGR>({
+    method: "POST",
+    url: managerUrl(`igrs/${igrId}/vincular-cidade/`),
+    data: { cidade_id: cidadeId },
+  });
+}
+
+export async function unlinkIgrFromCity(igrId: number, cidadeId: number): Promise<ManagerIGR> {
+  return managerRequest<ManagerIGR>({
+    method: "POST",
+    url: managerUrl(`igrs/${igrId}/desvincular-cidade/`),
+    data: { cidade_id: cidadeId },
+  });
+}
+
+// Coordenação Master: Estados, IGRs, Cidades e Tasks ETL
+export const getAdminEstados = () => getManagerCollection<AdminEstadoRecord>("admin-estados/");
+export const getAdminIgrs = () => getManagerCollection<AdminIGRRecord>("admin-igrs/");
+export const saveAdminIgr = (values: AdminIGRInput, id?: number) =>
+  saveManagerEntity<AdminIGRRecord, AdminIGRInput>("admin-igrs", values, id);
+export const deleteAdminIgr = (id: number) => deleteManagerEntity("admin-igrs", id);
+
+export const getAdminCidades = () => getManagerCollection<AdminCidadeRecord>("admin-cidades/");
+export const saveAdminCidade = (values: AdminCidadeInput, id?: number) =>
+  saveManagerEntity<AdminCidadeRecord, AdminCidadeInput>("admin-cidades", values, id);
+export const deleteAdminCidade = (id: number) => deleteManagerEntity("admin-cidades", id);
+
+export async function getAdminTasks(): Promise<AdminTaskRecord[]> {
+  const response = await axios.get<AdminTaskRecord[]>(managerUrl("admin-tasks/"), {
+    withCredentials: true,
+    timeout: 15000,
+  });
+  return response.data;
+}
+
+export async function updateAdminTaskSchedule(
+  id: number,
+  values: AdminTaskUpdateInput,
+): Promise<AdminTaskRecord> {
+  return managerRequest<AdminTaskRecord>({
+    method: "PATCH",
+    url: managerUrl(`admin-tasks/${id}/`),
+    data: values,
+  });
+}
+
+export async function runAdminTaskNow(
+  id: number,
+  params?: AdminTaskRunInput,
+): Promise<AdminTaskRunResponse> {
+  return managerRequest<AdminTaskRunResponse>({
+    method: "POST",
+    url: managerUrl(`admin-tasks/${id}/executar/`),
+    data: params || {},
+  });
+}
+
+export async function getAdminTaskLogs(): Promise<AdminTaskLogsResponse> {
+  const response = await axios.get<AdminTaskLogsResponse>(managerUrl("admin-tasks/logs/"), {
+    withCredentials: true,
+    timeout: 15000,
+  });
+  return response.data;
+}

@@ -19,24 +19,31 @@ import {
   AlertCircle,
   Info,
   Search,
-  Download,
-  FileText,
-  Image as ImageIcon,
   ChevronDown,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from "lucide-react";
-import * as htmlToImage from "html-to-image";
 import {
   AnalyticsRecord,
   clearAnalyticsCache,
   fetchJSONAndFlatten,
+  getGraphsApiBaseUrl,
   hasCachedData,
   hasFetchError,
   normalizarClassificacaoCurta,
   normalizeText,
   parseNumericValue
 } from "@/lib/api";
+import {
+  buildExportFilename,
+  exportChartAsPNG,
+  exportToCSV,
+  ExportRow,
+  formatExportDateBR,
+  formatMonthYearBR
+} from "@/lib/export";
+import { ChartExportFooter, ExportMenu } from "@/components/ExportMenu";
 
 type ChartDatum = Record<string, string | number>;
 
@@ -81,187 +88,12 @@ const subtractMonths = (yearMonth: string, monthsToSubtract: number): string => 
   return `${String(targetYear).padStart(4, "0")}-${String(targetMonth).padStart(2, "0")}`;
 };
 
-const escapeCSVCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+const roundOneDecimal = (value: number): number => Math.round(value * 10) / 10;
 
-const exportToCSV = (data: ChartDatum[], filename: string, orderedKeys?: string[]) => {
-  if (!data || !data.length) return;
-  const keySet = new Set<string>(orderedKeys ?? []);
-  data.forEach((row) => Object.keys(row).forEach((k) => keySet.add(k)));
-  const keys = Array.from(keySet);
-
-  const csvContent = [
-    keys.map(escapeCSVCell).join(";"),
-    ...data.map((row) => keys.map((k) => escapeCSVCell(row[k])).join(";"))
-  ].join("\n");
-
-  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = `${filename}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-};
-
-const exportChartAsPNG = async (elementId: string, filename: string): Promise<boolean> => {
-  const chartWrapper = document.getElementById(elementId);
-  if (!chartWrapper) return false;
-
-  try {
-    const pngFile = await htmlToImage.toPng(chartWrapper, {
-      pixelRatio: 2,
-      backgroundColor: "#ffffff",
-      filter: (node) => {
-        if (node instanceof HTMLElement && node.classList.contains("no-export")) {
-          return false;
-        }
-        return true;
-      }
-    });
-
-    const downloadLink = document.createElement("a");
-    downloadLink.download = `${filename}.png`;
-    downloadLink.href = pngFile;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    return true;
-  } catch (error) {
-    console.warn("Erro ao exportar imagem:", error);
-    return false;
-  }
-};
-
-interface ExportMenuProps {
-  onExportCSV: () => void;
-  onExportPNG: () => Promise<boolean> | boolean | void;
-  disabledCSV?: boolean;
-  disabledPNG?: boolean;
-  label?: string;
-}
-
-const ExportMenu = ({
-  onExportCSV,
-  onExportPNG,
-  disabledCSV = false,
-  disabledPNG = false,
-  label
-}: ExportMenuProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [exportingPNG, setExportingPNG] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const allDisabled = disabledCSV && disabledPNG;
-
-  useEffect(() => {
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("mousedown", handleOutside);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("mousedown", handleOutside);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [isOpen]);
-
-  const handlePNGClick = async () => {
-    if (disabledPNG || exportingPNG) return;
-    setIsOpen(false);
-    setExportError(null);
-    setExportingPNG(true);
-    try {
-      const ok = await onExportPNG();
-      if (ok === false) {
-        setExportError("Falha ao gerar PNG");
-        if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-        errorTimerRef.current = setTimeout(() => setExportError(null), 3500);
-      }
-    } catch {
-      setExportError("Falha ao gerar PNG");
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = setTimeout(() => setExportError(null), 3500);
-    } finally {
-      setExportingPNG(false);
-    }
-  };
-
-  return (
-    <div ref={menuRef} className="relative no-export print:hidden">
-      <button
-        type="button"
-        disabled={allDisabled || exportingPNG}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        aria-label={label ? `Exportar ${label}` : "Exportar dados do gráfico"}
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={`text-xs font-medium flex items-center gap-1.5 text-slate-700 bg-site-surface border border-slate-300 hover:bg-slate-50 hover:text-primary transition-all px-3 py-1.5 rounded-md shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING_CLASS}`}
-      >
-        {exportingPNG ? (
-          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Download className="h-3.5 w-3.5" />
-        )}
-        {exportingPNG ? "Gerando..." : "Exportar"}
-        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-      </button>
-
-      {exportError && (
-        <div
-          role="status"
-          className="absolute right-0 mt-1 whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-medium text-white shadow-md z-50"
-        >
-          {exportError}
-        </div>
-      )}
-
-      {isOpen && (
-        <div
-          role="menu"
-          className="absolute right-0 mt-1 w-40 bg-site-surface rounded-md shadow-lg border border-slate-200 z-50 overflow-hidden flex flex-col"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            disabled={disabledCSV}
-            onClick={() => {
-              if (disabledCSV) return;
-              onExportCSV();
-              setIsOpen(false);
-            }}
-            className={`text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${FOCUS_RING_CLASS}`}
-          >
-            <FileText className="h-3.5 w-3.5 text-emerald-700" /> Planilha (CSV)
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={disabledPNG || exportingPNG}
-            onClick={handlePNGClick}
-            className={`text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${FOCUS_RING_CLASS}`}
-          >
-            <ImageIcon className="h-3.5 w-3.5 text-blue-700" /> Imagem (PNG)
-          </button>
-        </div>
-      )}
-    </div>
-  );
+const getStatusWarningNote = (info: StatusInfo): string | null => {
+  if (info.status === "yellow") return "Obs.: dados parciais neste recorte";
+  if (info.status === "red") return "Obs.: há lacunas ou ausência de dados neste recorte";
+  return null;
 };
 
 const StatusBadge = ({ statusInfo }: { statusInfo: StatusInfo }) => {
@@ -386,7 +218,16 @@ const CITY_COLORS = [
   "#B7320E"  // Terracota Escuro
 ];
 
-const COLORS = ["#2E7D32", "#1976D2", "#C43E00", "#7B1FA2", "#00838F", "#C2185B"];
+const COLORS = [
+  "#2E7D32",
+  "#1976D2",
+  "#C43E00",
+  "#7B1FA2",
+  "#00838F",
+  "#C2185B",
+  "#9A5800",
+  "#37474F"
+];
 const MAX_RECOMMENDED_CITIES = 6;
 
 const MONTHS_LIST = [
@@ -496,13 +337,12 @@ export default function Dashboard() {
       setFetchError(null);
       setFuncionariosFetchFailed(false);
 
-      const rawBaseUrl = process.env.NEXT_PUBLIC_GRAPHS_URL;
-      if (!rawBaseUrl) {
+      const baseUrl = getGraphsApiBaseUrl();
+      if (!baseUrl) {
         setFetchError("URL da API de gráficos (NEXT_PUBLIC_GRAPHS_URL) não está configurada.");
         setLoading(false);
         return;
       }
-      const baseUrl = rawBaseUrl.trim().replace(/\/$/, "");
 
       const allCached =
         hasCachedData("estabelecimentos") &&
@@ -612,13 +452,38 @@ export default function Dashboard() {
     return Array.from(cityByNorm.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [estabelecimentos, funcionarios, estoque, postos]);
 
-  // Reconcilia a seleção inicial padrão contra os nomes reais carregados da base
+  // Reconcilia a seleção inicial (via parâmetro ?cidade= ou padrão) contra os nomes reais da base
   useEffect(() => {
     if (hasReconciledDefaultRef.current || allCities.length === 0) return;
     hasReconciledDefaultRef.current = true;
+    const cityByNorm = new Map(allCities.map((c) => [normalizeText(c), c]));
+
+    const queryCities: string[] = [];
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const rawParam = params.get("cidade") ?? params.get("cidades") ?? "";
+      rawParam
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .forEach((item) => {
+          const matched = cityByNorm.get(normalizeText(item));
+          if (matched && !queryCities.includes(matched)) {
+            queryCities.push(matched);
+          }
+        });
+    }
+
+    if (queryCities.length > 0) {
+      setSelectedCities(queryCities);
+      if (queryCities.length >= 2) {
+        setShowPieChart(false);
+      }
+      return;
+    }
+
     setSelectedCities((prev) => {
       if (prev.length === 0) return prev;
-      const cityByNorm = new Map(allCities.map((c) => [normalizeText(c), c]));
       const reconciled: string[] = [];
       for (const item of prev) {
         const matched = cityByNorm.get(normalizeText(item));
@@ -998,15 +863,15 @@ export default function Dashboard() {
     [fullChartDataPostos, applyTimeWindow]
   );
 
-  // Radar de Perfil Turístico (Top 6 setores padronizados) e totais por cidade para percentual no tooltip
-  const radarData = useMemo(() => chartDataEstabelecimentos.slice(0, 6), [chartDataEstabelecimentos]);
+  // Radar de Perfil Turístico (até 8 setores padronizados) e totais reais por cidade para percentual no tooltip e CSV
+  const radarData = useMemo(() => chartDataEstabelecimentos.slice(0, 8), [chartDataEstabelecimentos]);
   const radarCityTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     dataKeys.forEach((city) => {
-      totals[city] = radarData.reduce((sum, row) => sum + parseNumericValue(row[city]), 0);
+      totals[city] = chartDataEstabelecimentos.reduce((sum, row) => sum + parseNumericValue(row[city]), 0);
     });
     return totals;
-  }, [radarData, dataKeys]);
+  }, [chartDataEstabelecimentos, dataKeys]);
 
   // Ranking Top 10 municípios por volume de funcionários (agrupado por normalizeText)
   const chartDataRanking = useMemo<RankingDatum[]>(() => {
@@ -1066,8 +931,37 @@ export default function Dashboard() {
     selectedCities.length === 1
       ? selectedCities[0]
       : activePieCity === "Total"
-        ? "Todas selecionadas"
+        ? selectedCities.length <= 3
+          ? selectedCities.join(", ")
+          : `Todas selecionadas (${selectedCities.length} municípios)`
         : activePieCity;
+
+  const selectedCitiesScopeLabel =
+    selectedCities.length === 0
+      ? "Nenhum município selecionado"
+      : selectedCities.length <= 4
+        ? selectedCities.join(", ")
+        : `${selectedCities.slice(0, 3).join(", ")} e +${selectedCities.length - 3}`;
+
+  const buildPeriodMeta = (rows: ChartDatum[]) => {
+    if (rows.length > 0) {
+      const first = String(rows[0].data ?? "");
+      const last = String(rows[rows.length - 1].data ?? "");
+      if (first && last) {
+        return {
+          display: first === last ? formatMonthYearBR(first) : `${formatMonthYearBR(first)} a ${formatMonthYearBR(last)}`,
+          slug: first === last ? first : `${first}_a_${last}`
+        };
+      }
+    }
+    return {
+      display: activeTimeLabel,
+      slug: timeFilter === "custom" ? "personalizado" : timeFilter
+    };
+  };
+
+  const estoquePeriodMeta = buildPeriodMeta(chartDataEstoque);
+  const postosPeriodMeta = buildPeriodMeta(chartDataPostos);
 
   const hasForcaTrabalhoData = showPieChart ? pieChartData.length > 0 : chartDataFuncionarios.length > 0;
 
@@ -1256,12 +1150,12 @@ export default function Dashboard() {
           </div>
       </FilterBar>
 
-      <div className="max-w-7xl mx-auto px-4 mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {/* Aviso explícito em caso de indisponibilidade total ou parcial da API */}
         {fetchError && (
           <div
             role="alert"
-            className="mb-6 p-5 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            className="mb-6 p-5 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden"
           >
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
@@ -1283,7 +1177,7 @@ export default function Dashboard() {
 
         {/* Aviso de excesso de cidades selecionadas */}
         {selectedCities.length > MAX_RECOMMENDED_CITIES && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-xs text-amber-900">
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-xs text-amber-900 print:hidden">
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
             <span>
               Você selecionou {selectedCities.length} cidades. Para manter a legibilidade dos gráficos comparativos, recomenda-se comparar até {MAX_RECOMMENDED_CITIES} municípios simultaneamente.
@@ -1292,20 +1186,48 @@ export default function Dashboard() {
         )}
 
         {/* Resumo Dinâmico */}
-        <div className="mb-8 p-6 bg-site-surface rounded-xl shadow-sm border border-slate-100 flex items-start gap-4 print:shadow-none print:border-slate-200 print:break-inside-avoid">
-          <div className="p-3 bg-primary/10 rounded-full text-primary mt-1">
-            <Info className="h-6 w-6" />
+        <div className="mb-8 p-6 bg-site-surface rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-start justify-between gap-4 print:shadow-none print:border-slate-300 print:break-inside-avoid">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-primary/10 rounded-full text-primary mt-1 print:hidden">
+              <Info className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">
+                {isComparing ? `Analisando ${selectedCities.length} cidade(s)` : "Aguardando seleção de cidades"}
+              </h3>
+              <p className="text-slate-600 text-base leading-relaxed print:hidden">
+                {isComparing
+                  ? `Você está visualizando indicadores turísticos restritos aos municípios de ${selectedCities.join(", ")}. Verifique os ícones de integridade de dados nos cantos dos gráficos: ícones amarelos ou vermelhos indicam que um ou mais municípios selecionados possuem dados parciais ou ausentes para aquele indicador (clique ou passe o cursor para ver os detalhes).`
+                  : "Utilize a barra de busca acima para selecionar uma ou mais cidades. Os gráficos serão preenchidos automaticamente com os dados da região escolhida."}
+              </p>
+              {/* Cabeçalho executivo dedicado para impressão / salvar em PDF */}
+              <div className="hidden print:block text-sm text-slate-700 space-y-1 mt-2">
+                <p>
+                  <strong>Municípios analisados:</strong> {selectedCitiesScopeLabel}
+                </p>
+                <p>
+                  <strong>Recorte temporal das séries históricas:</strong> {estoquePeriodMeta.display}
+                </p>
+                <p>
+                  <strong>Emissão:</strong> {formatExportDateBR()} • <strong>Fonte:</strong> Observatório Regional do Turismo – IFSULDEMINAS (RAIS/CAGED)
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-800 mb-1">
-              {isComparing ? `Analisando ${selectedCities.length} cidade(s)` : "Aguardando seleção de cidades"}
-            </h3>
-            <p className="text-slate-600 text-base leading-relaxed">
-              {isComparing
-                ? `Você está visualizando indicadores turísticos restritos aos municípios de ${selectedCities.join(", ")}. Verifique os ícones de integridade de dados nos cantos dos gráficos: ícones amarelos ou vermelhos indicam que um ou mais municípios selecionados possuem dados parciais ou ausentes para aquele indicador (clique ou passe o cursor para ver os detalhes).`
-                : "Utilize a barra de busca acima para selecionar uma ou mais cidades. Os gráficos serão preenchidos automaticamente com os dados da região escolhida."}
-            </p>
-          </div>
+
+          {isComparing && (
+            <div className="flex items-center gap-2 shrink-0 self-start no-export print:hidden">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-emerald-700 rounded-lg shadow-sm transition-colors cursor-pointer ${FOCUS_RING_CLASS}`}
+                title="Gerar versão pronta para impressão ou salvar como PDF"
+              >
+                <Printer className="h-4 w-4 text-emerald-700" />
+                Imprimir / PDF
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 print:block print:space-y-8">
@@ -1320,28 +1242,52 @@ export default function Dashboard() {
                   <CardTitle className="text-xl text-slate-800">Estabelecimentos por Setor</CardTitle>
                   <CardDescription>Quantidade de negócios turísticos classificados por categoria.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 no-export print:hidden">
                   <ExportMenu
                     label="Estabelecimentos por Setor"
                     disabledCSV={chartDataEstabelecimentos.length === 0}
                     disabledPNG={chartDataEstabelecimentos.length === 0}
-                    onExportCSV={() =>
-                      exportToCSV(
-                        chartDataEstabelecimentos.map(({ name, ...rest }) => ({
-                          Classificação: name,
-                          ...rest
-                        })),
-                        "estabelecimentos_setor",
-                        ["Classificação", ...selectedCities]
+                    onExportCSV={() => {
+                      const rows: ExportRow[] = chartDataEstabelecimentos.map(({ name, ...rest }) => {
+                        const row: ExportRow = { Setor: name };
+                        let total = 0;
+                        selectedCities.forEach((city) => {
+                          if (rest[city] !== undefined) {
+                            const val = parseNumericValue(rest[city]);
+                            row[city] = val;
+                            total += val;
+                          } else {
+                            row[city] = null;
+                          }
+                        });
+                        if (selectedCities.length >= 2) {
+                          row["Total Selecionadas"] = total;
+                        }
+                        return row;
+                      });
+                      const cols = [
+                        "Setor",
+                        ...selectedCities,
+                        ...(selectedCities.length >= 2 ? ["Total Selecionadas"] : [])
+                      ];
+                      return exportToCSV(
+                        rows,
+                        buildExportFilename("estabelecimentos_setor", { cities: selectedCities }),
+                        cols
+                      );
+                    }}
+                    onExportPNG={() =>
+                      exportChartAsPNG(
+                        "card-estabelecimentos",
+                        buildExportFilename("estabelecimentos_setor", { cities: selectedCities })
                       )
                     }
-                    onExportPNG={() => exportChartAsPNG("card-estabelecimentos", "estabelecimentos_setor")}
                   />
                   <StatusBadge statusInfo={statusEstabelecimentos} />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="h-[400px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+            <CardContent className="h-[400px] bg-slate-50/80 pt-4 border-t border-slate-100">
               {!isComparing ? (
                 <EmptyChartState message="Selecione ao menos uma cidade para comparar estabelecimentos por setor." />
               ) : chartDataEstabelecimentos.length === 0 ? (
@@ -1370,6 +1316,10 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               )}
             </CardContent>
+            <ChartExportFooter
+              scope={selectedCitiesScopeLabel}
+              warningNote={getStatusWarningNote(statusEstabelecimentos)}
+            />
           </Card>
 
           {/* Gráfico de Funcionários (Pizza ou Barras Agrupadas) */}
@@ -1388,33 +1338,71 @@ export default function Dashboard() {
                   </CardDescription>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-start">
+                <div className="flex items-center gap-2 self-end sm:self-start no-export print:hidden">
                   <ExportMenu
                     label="Força de Trabalho"
                     disabledCSV={!hasForcaTrabalhoData}
                     disabledPNG={!hasForcaTrabalhoData}
                     onExportCSV={() => {
                       if (showPieChart) {
-                        const safeSuffix = normalizeText(activePieScopeLabel)
-                          .replace(/[^a-z0-9]+/g, "_")
-                          .replace(/^_|_$/g, "");
-                        exportToCSV(
-                          pieChartData.map((d) => ({ Setor: d.name, Funcionários: d.value })),
-                          `forca_trabalho_${safeSuffix || "pizza"}`,
-                          ["Setor", "Funcionários"]
+                        const pieCities =
+                          activePieCity === "Total" ? selectedCities : [activePieCity];
+                        const totalPie = pieChartData.reduce((acc, item) => acc + item.value, 0);
+                        return exportToCSV(
+                          pieChartData.map((d) => ({
+                            Setor: d.name,
+                            Funcionários: d.value,
+                            "Participação (%)":
+                              totalPie > 0 ? roundOneDecimal((d.value / totalPie) * 100) : 0
+                          })),
+                          buildExportFilename("forca_trabalho", {
+                            cities: pieCities,
+                            suffix: "proporcao"
+                          }),
+                          ["Setor", "Funcionários", "Participação (%)"]
                         );
                       } else {
-                        exportToCSV(
-                          chartDataFuncionarios.map(({ name, ...rest }) => ({
-                            Classificação: name,
-                            ...rest
-                          })),
-                          "forca_trabalho",
-                          ["Classificação", ...selectedCities]
+                        const rows: ExportRow[] = chartDataFuncionarios.map(({ name, ...rest }) => {
+                          const row: ExportRow = { Setor: name };
+                          let total = 0;
+                          selectedCities.forEach((city) => {
+                            if (rest[city] !== undefined) {
+                              const val = parseNumericValue(rest[city]);
+                              row[city] = val;
+                              total += val;
+                            } else {
+                              row[city] = null;
+                            }
+                          });
+                          if (selectedCities.length >= 2) {
+                            row["Total Selecionadas"] = total;
+                          }
+                          return row;
+                        });
+                        const cols = [
+                          "Setor",
+                          ...selectedCities,
+                          ...(selectedCities.length >= 2 ? ["Total Selecionadas"] : [])
+                        ];
+                        return exportToCSV(
+                          rows,
+                          buildExportFilename("forca_trabalho", { cities: selectedCities }),
+                          cols
                         );
                       }
                     }}
-                    onExportPNG={() => exportChartAsPNG("card-forca-trabalho", "forca_trabalho")}
+                    onExportPNG={() =>
+                      exportChartAsPNG(
+                        "card-forca-trabalho",
+                        buildExportFilename("forca_trabalho", {
+                          cities:
+                            showPieChart && activePieCity !== "Total"
+                              ? [activePieCity]
+                              : selectedCities,
+                          suffix: showPieChart ? "proporcao" : undefined
+                        })
+                      )
+                    }
                   />
                   <StatusBadge statusInfo={statusFuncionarios} />
                 </div>
@@ -1465,7 +1453,7 @@ export default function Dashboard() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="h-[400px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+            <CardContent className="h-[400px] bg-slate-50/80 pt-4 border-t border-slate-100">
               {!isComparing ? (
                 <EmptyChartState message="Selecione ao menos uma cidade para visualizar a força de trabalho." />
               ) : !hasForcaTrabalhoData ? (
@@ -1523,6 +1511,10 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               )}
             </CardContent>
+            <ChartExportFooter
+              scope={showPieChart ? activePieScopeLabel : selectedCitiesScopeLabel}
+              warningNote={getStatusWarningNote(statusFuncionarios)}
+            />
           </Card>
         </div>
 
@@ -1537,11 +1529,12 @@ export default function Dashboard() {
                 <div>
                   <CardTitle className="text-xl text-slate-800">Estoque Acumulado de Empregos</CardTitle>
                   <CardDescription>
-                    Série histórica do volume de vagas ativas ({activeTimeLabel} — aplica-se também ao Saldo de Postos).
+                    Série histórica do volume de vagas ativas ({estoquePeriodMeta.display}
+                    <span className="no-export print:hidden"> — aplica-se também ao Saldo de Postos</span>).
                   </CardDescription>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 no-export print:hidden">
                   {/* Filtros de Tempo */}
                   <div ref={customDateRef} className="flex flex-col gap-2 no-export print:hidden max-w-full">
                     <div className="flex flex-wrap items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 self-end relative">
@@ -1760,26 +1753,69 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 no-export print:hidden">
                     <ExportMenu
                       label="Estoque Acumulado de Empregos"
                       disabledCSV={isCustomRangeInvalid || chartDataEstoque.length === 0}
                       disabledPNG={isCustomRangeInvalid || chartDataEstoque.length === 0}
-                      onExportCSV={() =>
-                        exportToCSV(
-                          chartDataEstoque.map(({ data, ...rest }) => ({ Data: data, ...rest })),
-                          "estoque_acumulado",
-                          ["Data", ...selectedCities]
+                      onExportCSV={() => {
+                        const cityCols = selectedCities.map((c) => `${c} (vagas ativas)`);
+                        const rows: ExportRow[] = chartDataEstoque.map(({ data, ...rest }) => {
+                          const dataStr = String(data ?? "");
+                          const [ano, mes] = dataStr.split("-");
+                          const row: ExportRow = {
+                            Competência: dataStr,
+                            Ano: ano ? Number.parseInt(ano, 10) : null,
+                            Mês: mes ? Number.parseInt(mes, 10) : null
+                          };
+                          let total = 0;
+                          selectedCities.forEach((city) => {
+                            const colKey = `${city} (vagas ativas)`;
+                            if (rest[city] !== undefined) {
+                              const val = parseNumericValue(rest[city]);
+                              row[colKey] = val;
+                              total += val;
+                            } else {
+                              row[colKey] = null;
+                            }
+                          });
+                          if (selectedCities.length >= 2) {
+                            row["Total Selecionadas (vagas ativas)"] = total;
+                          }
+                          return row;
+                        });
+                        const cols = [
+                          "Competência",
+                          "Ano",
+                          "Mês",
+                          ...cityCols,
+                          ...(selectedCities.length >= 2 ? ["Total Selecionadas (vagas ativas)"] : [])
+                        ];
+                        return exportToCSV(
+                          rows,
+                          buildExportFilename("estoque_acumulado", {
+                            cities: selectedCities,
+                            period: estoquePeriodMeta.slug
+                          }),
+                          cols
+                        );
+                      }}
+                      onExportPNG={() =>
+                        exportChartAsPNG(
+                          "card-estoque",
+                          buildExportFilename("estoque_acumulado", {
+                            cities: selectedCities,
+                            period: estoquePeriodMeta.slug
+                          })
                         )
                       }
-                      onExportPNG={() => exportChartAsPNG("card-estoque", "estoque_acumulado")}
                     />
                     <StatusBadge statusInfo={statusEstoque} />
                   </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="h-[400px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+            <CardContent className="h-[400px] bg-slate-50/80 pt-4 border-t border-slate-100">
               {isCustomRangeInvalid ? (
                 <div className="h-full flex items-center justify-center text-sm text-red-600 font-medium text-center px-6">
                   Intervalo inválido: ajuste a data inicial e final para visualizar a série histórica.
@@ -1815,6 +1851,11 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               )}
             </CardContent>
+            <ChartExportFooter
+              scope={selectedCitiesScopeLabel}
+              period={estoquePeriodMeta.display}
+              warningNote={getStatusWarningNote(statusEstoque)}
+            />
           </Card>
         </div>
 
@@ -1823,7 +1864,7 @@ export default function Dashboard() {
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-2xl font-bold text-slate-800">Análises Exploratórias</h2>
             <span className="text-xs font-medium text-slate-500">
-              Recorte temporal ativo: <strong className="text-slate-700">{activeTimeLabel}</strong>
+              Recorte temporal ativo: <strong className="text-slate-700">{postosPeriodMeta.display}</strong>
             </span>
           </div>
 
@@ -1837,27 +1878,70 @@ export default function Dashboard() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg text-slate-800">Saldo de Postos (Admissões vs Demissões)</CardTitle>
-                    <CardDescription>Balanço líquido mensal de empregos gerados ({activeTimeLabel}).</CardDescription>
+                    <CardDescription>Balanço líquido mensal de empregos gerados ({postosPeriodMeta.display}).</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 no-export print:hidden">
                     <ExportMenu
                       label="Saldo de Postos"
                       disabledCSV={isCustomRangeInvalid || chartDataPostos.length === 0}
                       disabledPNG={isCustomRangeInvalid || chartDataPostos.length === 0}
-                      onExportCSV={() =>
-                        exportToCSV(
-                          chartDataPostos.map(({ data, ...rest }) => ({ Data: data, ...rest })),
-                          "saldo_postos",
-                          ["Data", ...selectedCities]
+                      onExportCSV={() => {
+                        const cityCols = selectedCities.map((c) => `${c} (saldo de vagas)`);
+                        const rows: ExportRow[] = chartDataPostos.map(({ data, ...rest }) => {
+                          const dataStr = String(data ?? "");
+                          const [ano, mes] = dataStr.split("-");
+                          const row: ExportRow = {
+                            Competência: dataStr,
+                            Ano: ano ? Number.parseInt(ano, 10) : null,
+                            Mês: mes ? Number.parseInt(mes, 10) : null
+                          };
+                          let total = 0;
+                          selectedCities.forEach((city) => {
+                            const colKey = `${city} (saldo de vagas)`;
+                            if (rest[city] !== undefined) {
+                              const val = parseNumericValue(rest[city]);
+                              row[colKey] = val;
+                              total += val;
+                            } else {
+                              row[colKey] = null;
+                            }
+                          });
+                          if (selectedCities.length >= 2) {
+                            row["Total Selecionadas (saldo de vagas)"] = total;
+                          }
+                          return row;
+                        });
+                        const cols = [
+                          "Competência",
+                          "Ano",
+                          "Mês",
+                          ...cityCols,
+                          ...(selectedCities.length >= 2 ? ["Total Selecionadas (saldo de vagas)"] : [])
+                        ];
+                        return exportToCSV(
+                          rows,
+                          buildExportFilename("saldo_postos", {
+                            cities: selectedCities,
+                            period: postosPeriodMeta.slug
+                          }),
+                          cols
+                        );
+                      }}
+                      onExportPNG={() =>
+                        exportChartAsPNG(
+                          "card-postos",
+                          buildExportFilename("saldo_postos", {
+                            cities: selectedCities,
+                            period: postosPeriodMeta.slug
+                          })
                         )
                       }
-                      onExportPNG={() => exportChartAsPNG("card-postos", "saldo_postos")}
                     />
                     <StatusBadge statusInfo={statusPostos} />
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="h-[360px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+              <CardContent className="h-[360px] bg-slate-50/80 pt-4 border-t border-slate-100">
                 {isCustomRangeInvalid ? (
                   <div className="h-full flex items-center justify-center text-sm text-red-600 font-medium text-center px-6">
                     Intervalo inválido: ajuste a data inicial e final para visualizar a série histórica.
@@ -1901,6 +1985,11 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 )}
               </CardContent>
+              <ChartExportFooter
+                scope={selectedCitiesScopeLabel}
+                period={postosPeriodMeta.display}
+                warningNote={getStatusWarningNote(statusPostos)}
+              />
             </Card>
 
             {/* Gráfico 2: Radar - Perfil Turístico */}
@@ -1914,25 +2003,49 @@ export default function Dashboard() {
                     <CardTitle className="text-lg text-slate-800">Perfil Turístico (Setores)</CardTitle>
                     <CardDescription>Distribuição proporcional de estabelecimentos por segmento.</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 no-export print:hidden">
                     <ExportMenu
                       label="Perfil Turístico"
                       disabledCSV={radarData.length === 0}
                       disabledPNG={radarData.length === 0}
-                      onExportCSV={() =>
-                        exportToCSV(
-                          radarData.map(({ name, ...rest }) => ({ Classificação: name, ...rest })),
-                          "perfil_turistico",
-                          ["Classificação", ...selectedCities]
+                      onExportCSV={() => {
+                        const rows: ExportRow[] = radarData.map(({ name, ...rest }) => {
+                          const row: ExportRow = { Setor: name };
+                          selectedCities.forEach((city) => {
+                            const total = radarCityTotals[city] || 0;
+                            if (rest[city] !== undefined) {
+                              const val = parseNumericValue(rest[city]);
+                              row[city] = val;
+                              row[`${city} (%)`] = total > 0 ? roundOneDecimal((val / total) * 100) : 0;
+                            } else {
+                              row[city] = null;
+                              row[`${city} (%)`] = null;
+                            }
+                          });
+                          return row;
+                        });
+                        const cols = [
+                          "Setor",
+                          ...selectedCities.flatMap((c) => [c, `${c} (%)`])
+                        ];
+                        return exportToCSV(
+                          rows,
+                          buildExportFilename("perfil_turistico", { cities: selectedCities }),
+                          cols
+                        );
+                      }}
+                      onExportPNG={() =>
+                        exportChartAsPNG(
+                          "card-perfil",
+                          buildExportFilename("perfil_turistico", { cities: selectedCities })
                         )
                       }
-                      onExportPNG={() => exportChartAsPNG("card-perfil", "perfil_turistico")}
                     />
                     <StatusBadge statusInfo={statusEstabelecimentos} />
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="h-[360px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+              <CardContent className="h-[360px] bg-slate-50/80 pt-4 border-t border-slate-100">
                 {!isComparing ? (
                   <EmptyChartState message="Selecione ao menos uma cidade para comparar o perfil turístico." />
                 ) : radarData.length === 0 ? (
@@ -1967,6 +2080,10 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 )}
               </CardContent>
+              <ChartExportFooter
+                scope={selectedCitiesScopeLabel}
+                warningNote={getStatusWarningNote(statusEstabelecimentos)}
+              />
             </Card>
 
             {/* Gráfico 3: Ranking de Cidades */}
@@ -1979,27 +2096,52 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <CardTitle className="text-lg text-slate-800">Top 10 Volume de Funcionários</CardTitle>
-                      <CardDescription>Os municípios com maior força de trabalho no turismo regional.</CardDescription>
+                      <CardDescription>
+                        Os municípios com maior força de trabalho no turismo regional
+                        {selectedCities.length === 1 &&
+                        chartDataRanking.some(
+                          (r) => normalizeText(r.cidade) === normalizeText(selectedCities[0])
+                        )
+                          ? ` (destaque em verde escuro: ${selectedCities[0]}).`
+                          : "."}
+                      </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 no-export print:hidden">
                       <ExportMenu
                         label="Top 10 Volume de Funcionários"
                         disabledCSV={chartDataRanking.length === 0}
                         disabledPNG={chartDataRanking.length === 0}
-                        onExportCSV={() =>
-                          exportToCSV(
-                            chartDataRanking.map((r) => ({ Município: r.cidade, Funcionários: r.funcionarios })),
-                            "ranking_cidades",
-                            ["Município", "Funcionários"]
+                        onExportCSV={() => {
+                          const totalTop10 = chartDataRanking.reduce(
+                            (sum, r) => sum + r.funcionarios,
+                            0
+                          );
+                          return exportToCSV(
+                            chartDataRanking.map((r, index) => ({
+                              Posição: index + 1,
+                              Município: r.cidade,
+                              Funcionários: r.funcionarios,
+                              "Participação no Top 10 (%)":
+                                totalTop10 > 0
+                                  ? roundOneDecimal((r.funcionarios / totalTop10) * 100)
+                                  : 0
+                            })),
+                            buildExportFilename("ranking_top10_funcionarios"),
+                            ["Posição", "Município", "Funcionários", "Participação no Top 10 (%)"]
+                          );
+                        }}
+                        onExportPNG={() =>
+                          exportChartAsPNG(
+                            "card-ranking",
+                            buildExportFilename("ranking_top10_funcionarios")
                           )
                         }
-                        onExportPNG={() => exportChartAsPNG("card-ranking", "ranking_cidades")}
                       />
                       <StatusBadge statusInfo={statusRanking} />
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="h-[360px] bg-slate-50/80 rounded-b-xl pt-4 border-t border-slate-100">
+                <CardContent className="h-[360px] bg-slate-50/80 pt-4 border-t border-slate-100">
                   {chartDataRanking.length === 0 ? (
                     <EmptyChartState message="Nenhum dado disponível para o ranking regional de funcionários." />
                   ) : (
@@ -2030,6 +2172,10 @@ export default function Dashboard() {
                     </ResponsiveContainer>
                   )}
                 </CardContent>
+                <ChartExportFooter
+                  scope="Top 10 municípios do Sul de Minas"
+                  warningNote={getStatusWarningNote(statusRanking)}
+                />
               </Card>
             )}
           </div>

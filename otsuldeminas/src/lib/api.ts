@@ -155,7 +155,17 @@ export function normalizarClassificacaoCurta(rawClass?: unknown): string {
   if (normalized.includes('outros') || normalized.includes('outras')) {
     return 'Outros Serviços';
   }
+  if (normalized.includes('comercio')) {
+    return 'Comércio e Serviços';
+  }
   return original;
+}
+
+/** Retorna a URL base configurada da API de gráficos sem barra final, ou null se ausente. */
+export function getGraphsApiBaseUrl(): string | null {
+  const raw = (process.env.NEXT_PUBLIC_GRAPHS_URL ?? '').trim();
+  if (!raw) return null;
+  return raw.replace(/\/+$/, '');
 }
 
 /** A API de gráficos espera o código IBGE com 6 dígitos (sem o dígito verificador). */

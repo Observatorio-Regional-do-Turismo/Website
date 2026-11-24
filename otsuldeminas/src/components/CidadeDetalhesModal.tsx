@@ -48,12 +48,19 @@ import {
   clearAnalyticsCache,
   fetchJSONAndFlatten,
   getCodigoIBGEParaGraficos,
+  getGraphsApiBaseUrl,
   hasCachedData,
   hasFetchError,
   normalizarClassificacaoCurta,
   normalizeText,
   parseNumericValue,
 } from "@/lib/api";
+import {
+  buildExportFilename,
+  exportChartAsPNG,
+  exportToCSV,
+} from "@/lib/export";
+import { ChartExportFooter, ExportMenu } from "@/components/ExportMenu";
 import {
   formatarPopulacao,
   formatarPIB,
@@ -314,8 +321,12 @@ export function CidadeDetalhesModal({
         unexpectedError: false,
       });
 
-      const rawUrl = (process.env.NEXT_PUBLIC_GRAPHS_URL ?? "").trim();
-      const baseUrl = (rawUrl || "/api/externo").replace(/\/$/, "");
+      const baseUrl = getGraphsApiBaseUrl();
+      if (!baseUrl) {
+        setGraphsFetchError("URL da API de gráficos (NEXT_PUBLIC_GRAPHS_URL) não está configurada.");
+        setLoadingRealData(false);
+        return;
+      }
       const codigoIBGE = getCodigoIBGEParaGraficos(cidadeIbgeCode);
       const postosUrl = codigoIBGE
         ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
@@ -587,13 +598,13 @@ export function CidadeDetalhesModal({
   );
 
   const radarData = useMemo(
-    () => combinedData.filter((d) => d.Estabelecimentos > 0).slice(0, 6),
+    () => combinedData.filter((d) => d.Estabelecimentos > 0).slice(0, 8),
     [combinedData],
   );
 
   const totalEstabelecimentosCity = useMemo(
-    () => radarData.reduce((sum, item) => sum + item.Estabelecimentos, 0),
-    [radarData],
+    () => combinedData.reduce((sum, item) => sum + item.Estabelecimentos, 0),
+    [combinedData],
   );
 
   const { dataStatus, dataStatusDetail } = useMemo<{
@@ -1317,94 +1328,105 @@ export function CidadeDetalhesModal({
                   </div>
                 </div>
 
-                {/* Indicador de Integridade Acessível */}
-                {loadingRealData ? (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-sm self-start sm:self-auto">
-                    <RefreshCw className="w-3.5 h-3.5 text-[#359830] animate-spin" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">
-                      Carregando dados...
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    ref={statusBadgeRef}
-                    className="relative inline-flex self-start sm:self-auto"
-                    onMouseEnter={() => {
-                      setStatusHovered(true);
-                      setStatusDismissed(false);
-                    }}
-                    onMouseLeave={() => {
-                      setStatusHovered(false);
-                      setStatusDismissed(false);
-                    }}
-                    onBlur={(e) => {
-                      if (!statusBadgeRef.current?.contains(e.relatedTarget as Node | null)) {
-                        setStatusFocused(false);
-                        setStatusDismissed(false);
-                      }
-                    }}
+                {/* Ações e Indicador de Integridade Acessível */}
+                <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+                  <Link
+                    href={`/dashboard?cidade=${encodeURIComponent(cidade.name)}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[#1D5C1B] border border-[#5BAF56]/40 hover:bg-[#EAF4E9] text-[11px] font-bold tracking-wide uppercase shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                    title={`Comparar ${cidade.name} com outros municípios no Painel`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (statusPinned) {
-                          setStatusPinned(false);
-                          setStatusDismissed(true);
-                        } else {
-                          setStatusDismissed(false);
-                          setStatusPinned(true);
-                        }
-                      }}
-                      onFocus={() => {
-                        setStatusFocused(true);
+                    <span>Comparar no Painel</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+
+                  {loadingRealData ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
+                      <RefreshCw className="w-3.5 h-3.5 text-[#359830] animate-spin" />
+                      <span className="text-[11px] font-bold tracking-wide uppercase">
+                        Carregando dados...
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      ref={statusBadgeRef}
+                      className="relative inline-flex"
+                      onMouseEnter={() => {
+                        setStatusHovered(true);
                         setStatusDismissed(false);
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape" && isStatusTooltipVisible) {
-                          e.stopPropagation();
-                          setStatusPinned(false);
-                          setStatusDismissed(true);
+                      onMouseLeave={() => {
+                        setStatusHovered(false);
+                        setStatusDismissed(false);
+                      }}
+                      onBlur={(e) => {
+                        if (!statusBadgeRef.current?.contains(e.relatedTarget as Node | null)) {
+                          setStatusFocused(false);
+                          setStatusDismissed(false);
                         }
                       }}
-                      aria-label={dataStatusDetail}
-                      aria-expanded={isStatusTooltipVisible}
-                      aria-describedby={isStatusTooltipVisible ? statusTooltipId : undefined}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
-                        dataStatus === "unavailable"
-                          ? "bg-red-50 text-[#C90C0F] border-[#C90C0F]/20"
-                          : dataStatus === "partial"
-                            ? "bg-amber-50 text-amber-800 border-amber-300"
-                            : "bg-[#EAF4E9] text-[#1D5C1B] border-[#5BAF56]/30"
-                      }`}
                     >
-                      <div
-                        className={`w-1.5 h-1.5 rounded-full ${
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (statusPinned) {
+                            setStatusPinned(false);
+                            setStatusDismissed(true);
+                          } else {
+                            setStatusDismissed(false);
+                            setStatusPinned(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          setStatusFocused(true);
+                          setStatusDismissed(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape" && isStatusTooltipVisible) {
+                            e.stopPropagation();
+                            setStatusPinned(false);
+                            setStatusDismissed(true);
+                          }
+                        }}
+                        aria-label={dataStatusDetail}
+                        aria-expanded={isStatusTooltipVisible}
+                        aria-describedby={isStatusTooltipVisible ? statusTooltipId : undefined}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
                           dataStatus === "unavailable"
-                            ? "bg-[#C90C0F]"
+                            ? "bg-red-50 text-[#C90C0F] border-[#C90C0F]/20"
                             : dataStatus === "partial"
-                              ? "bg-amber-500 animate-pulse"
-                              : "bg-[#359830]"
+                              ? "bg-amber-50 text-amber-800 border-amber-300"
+                              : "bg-[#EAF4E9] text-[#1D5C1B] border-[#5BAF56]/30"
                         }`}
-                      />
-                      <span className="text-[11px] font-bold tracking-wide uppercase">
-                        {dataStatus === "unavailable"
-                          ? "Dados Indisponíveis"
-                          : dataStatus === "partial"
-                            ? "Dados Parciais"
-                            : "Dados Completos"}
-                      </span>
-                    </button>
-                    {isStatusTooltipVisible && dataStatusDetail && (
-                      <div
-                        id={statusTooltipId}
-                        role="tooltip"
-                        className="absolute top-full right-0 mt-2 w-64 bg-slate-800 text-white text-xs rounded-lg p-3 shadow-xl z-50 leading-relaxed"
                       >
-                        {dataStatusDetail}
-                      </div>
-                    )}
-                  </div>
-                )}
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            dataStatus === "unavailable"
+                              ? "bg-[#C90C0F]"
+                              : dataStatus === "partial"
+                                ? "bg-amber-500 animate-pulse"
+                                : "bg-[#359830]"
+                          }`}
+                        />
+                        <span className="text-[11px] font-bold tracking-wide uppercase">
+                          {dataStatus === "unavailable"
+                            ? "Dados Indisponíveis"
+                            : dataStatus === "partial"
+                              ? "Dados Parciais"
+                              : "Dados Completos"}
+                        </span>
+                      </button>
+                      {isStatusTooltipVisible && dataStatusDetail && (
+                        <div
+                          id={statusTooltipId}
+                          role="tooltip"
+                          className="absolute top-full right-0 mt-2 w-64 bg-slate-800 text-white text-xs rounded-lg p-3 shadow-xl z-50 leading-relaxed"
+                        >
+                          {dataStatusDetail}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Aviso de erro de rede/HTTP com recuperação seletiva na Seção 4 */}
@@ -1425,19 +1447,21 @@ export function CidadeDetalhesModal({
                   <button
                     type="button"
                     onClick={() => {
-                      const rawUrl = (process.env.NEXT_PUBLIC_GRAPHS_URL ?? "").trim();
-                      const baseUrl = (rawUrl || "/api/externo").replace(/\/$/, "");
+                      const baseUrl = getGraphsApiBaseUrl();
                       const codigoIBGE = getCodigoIBGEParaGraficos(cidadeIbgeCode);
-                      const postosUrl = codigoIBGE
-                        ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
-                        : `${baseUrl}/postos_de_trabalho/`;
+                      const postosUrl =
+                        baseUrl && codigoIBGE
+                          ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
+                          : baseUrl
+                            ? `${baseUrl}/postos_de_trabalho/`
+                            : "";
                       if (hasFetchError("estabelecimentos")) {
                         clearAnalyticsCache("estabelecimentos");
                       }
                       if (hasFetchError("funcionarios")) {
                         clearAnalyticsCache("funcionarios");
                       }
-                      if (hasFetchError("postos", postosUrl)) {
+                      if (postosUrl && hasFetchError("postos", postosUrl)) {
                         clearAnalyticsCache("postos", postosUrl);
                       }
                       if (hasFetchError("postos")) {
@@ -1499,16 +1523,49 @@ export function CidadeDetalhesModal({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {/* Radar */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative">
-                  <div className="mb-4">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
-                      Vocação Turística
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Distribuição de estabelecimentos por categoria
-                    </p>
+                <div
+                  id="modal-card-vocacao"
+                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col relative overflow-hidden"
+                >
+                  <div className="p-5 sm:p-6 pb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                        Vocação Turística
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Distribuição de estabelecimentos por categoria — {cidade.name}
+                      </p>
+                    </div>
+                    <div className="no-export print:hidden shrink-0">
+                      <ExportMenu
+                        compact
+                        label={`Vocação Turística de ${cidade.name}`}
+                        disabledCSV={loadingRealData || radarData.length === 0}
+                        disabledPNG={loadingRealData || radarData.length === 0}
+                        onExportCSV={() =>
+                          exportToCSV(
+                            radarData.map((d) => ({
+                              Setor: d.Classificação,
+                              Estabelecimentos: d.Estabelecimentos,
+                              "Participação (%)":
+                                totalEstabelecimentosCity > 0
+                                  ? Math.round((d.Estabelecimentos / totalEstabelecimentosCity) * 1000) / 10
+                                  : 0,
+                            })),
+                            buildExportFilename("vocacao_turistica", { cities: [cidade.name] }),
+                            ["Setor", "Estabelecimentos", "Participação (%)"],
+                          )
+                        }
+                        onExportPNG={() =>
+                          exportChartAsPNG(
+                            "modal-card-vocacao",
+                            buildExportFilename("vocacao_turistica", { cities: [cidade.name] }),
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="h-64 w-full pt-2 relative flex items-center justify-center">
+                  <div className="px-5 sm:px-6 pb-4 h-64 w-full pt-2 relative flex items-center justify-center">
                     {loadingRealData ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                         <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
@@ -1558,29 +1615,78 @@ export function CidadeDetalhesModal({
                       </ResponsiveContainer>
                     )}
                   </div>
+                  <ChartExportFooter
+                    scope={cidade.name}
+                    warningNote={
+                      dataStatus === "partial"
+                        ? "Obs.: dados parciais neste município"
+                        : dataStatus === "unavailable"
+                          ? "Obs.: dados indisponíveis"
+                          : null
+                    }
+                    roundedBottom={false}
+                  />
                 </div>
 
                 {/* Gráfico Comparativo: Estabelecimentos vs. Funcionários (Barras Agrupadas com dois eixos Y) */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2">
-                  <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div
+                  id="modal-card-setorial"
+                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2 overflow-hidden"
+                >
+                  <div className="p-5 sm:p-6 pb-2 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
                         Estabelecimentos vs. Funcionários
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Comparação setorial entre estabelecimentos ativos e força de trabalho
+                        Comparação setorial entre estabelecimentos ativos e força de trabalho — {cidade.name}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
-                      <div className="flex items-center gap-1.5" title="Eixo Y esquerdo: Estabelecimentos">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#2E7D32]" /> Estabelecimentos
+                    <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+                      <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
+                        <div className="flex items-center gap-1.5" title="Eixo Y esquerdo: Estabelecimentos">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#2E7D32]" /> Estabelecimentos (esq.)
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Eixo Y direito: Funcionários">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#1976D2]" /> Funcionários (dir.)
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5" title="Eixo Y direito: Funcionários">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#1976D2]" /> Funcionários
+                      <div className="no-export print:hidden">
+                        <ExportMenu
+                          compact
+                          label={`Estabelecimentos vs. Funcionários de ${cidade.name}`}
+                          disabledCSV={loadingRealData || combinedData.length === 0}
+                          disabledPNG={loadingRealData || combinedData.length === 0}
+                          onExportCSV={() =>
+                            exportToCSV(
+                              combinedData.map((d) => ({
+                                Setor: d.Classificação,
+                                Estabelecimentos: d.Estabelecimentos,
+                                Funcionários: d.Funcionarios,
+                                "Média Func./Estab.":
+                                  d.Estabelecimentos > 0
+                                    ? Math.round((d.Funcionarios / d.Estabelecimentos) * 10) / 10
+                                    : null,
+                              })),
+                              buildExportFilename("estabelecimentos_vs_funcionarios", {
+                                cities: [cidade.name],
+                              }),
+                              ["Setor", "Estabelecimentos", "Funcionários", "Média Func./Estab."],
+                            )
+                          }
+                          onExportPNG={() =>
+                            exportChartAsPNG(
+                              "modal-card-setorial",
+                              buildExportFilename("estabelecimentos_vs_funcionarios", {
+                                cities: [cidade.name],
+                              }),
+                            )
+                          }
+                        />
                       </div>
                     </div>
                   </div>
-                  <div className="h-64 w-full pt-2 relative">
+                  <div className="px-5 sm:px-6 pb-4 h-72 w-full pt-2 relative">
                     {loadingRealData ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                         <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
@@ -1593,12 +1699,15 @@ export function CidadeDetalhesModal({
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={combinedData}
-                          margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                          margin={{ top: 10, right: 10, left: 0, bottom: 24 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
                           <XAxis
                             dataKey="Classificação"
                             interval={0}
+                            angle={-25}
+                            textAnchor="end"
+                            height={58}
                             tick={{ fontSize: 10, fill: "#1D5C1B" }}
                             axisLine={false}
                             tickLine={false}
@@ -1657,27 +1766,41 @@ export function CidadeDetalhesModal({
                       </ResponsiveContainer>
                     )}
                   </div>
+                  <ChartExportFooter
+                    scope={cidade.name}
+                    warningNote={
+                      dataStatus === "partial"
+                        ? "Obs.: dados parciais neste município"
+                        : dataStatus === "unavailable"
+                          ? "Obs.: dados indisponíveis"
+                          : null
+                    }
+                    roundedBottom={false}
+                  />
                 </div>
 
                 {/* Gráfico 3: Saldo de Empregos */}
-                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative lg:col-span-2 xl:col-span-3">
-                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div
+                  id="modal-card-termometro"
+                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col relative lg:col-span-2 xl:col-span-3 overflow-hidden"
+                >
+                  <div className="p-5 sm:p-6 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
-                        Termômetro de Empregos
+                        Termômetro de Empregos{selectedYear ? ` (${selectedYear})` : ""}
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Saldo mensal de contratações (Admissões menos Desligamentos)
+                        Saldo mensal de contratações (Admissões menos Desligamentos) — {cidade.name}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5 no-export print:hidden">
                       {/* Seletor de Ano */}
                       {!loadingRealData && availableYears.length > 0 && (
                         <select
                           aria-label="Selecionar ano do Termômetro de Empregos"
                           value={selectedYear}
                           onChange={(e) => setSelectedYear(e.target.value)}
-                          className="bg-slate-50 border border-[#5BAF56]/40 text-[#1D5C1B] text-sm font-semibold rounded-lg px-3 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                          className="bg-slate-50 border border-[#5BAF56]/40 text-[#1D5C1B] text-xs font-semibold rounded-md px-3 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
                         >
                           {availableYears.map((year) => (
                             <option key={year} value={year}>
@@ -1686,10 +1809,40 @@ export function CidadeDetalhesModal({
                           ))}
                         </select>
                       )}
+                      <ExportMenu
+                        compact
+                        label={`Termômetro de Empregos de ${cidade.name}`}
+                        disabledCSV={loadingRealData || realPostos.length === 0}
+                        disabledPNG={loadingRealData || realPostos.length === 0}
+                        onExportCSV={() =>
+                          exportToCSV(
+                            realPostos.map((r) => ({
+                              Ano: selectedYear ? Number.parseInt(selectedYear, 10) : null,
+                              Mês: Number.parseInt(r.Mês, 10),
+                              Competência: selectedYear ? `${selectedYear}-${r.Mês}` : r.Mês,
+                              "Saldo de Postos (vagas)": r.Saldo,
+                            })),
+                            buildExportFilename("termometro_empregos", {
+                              cities: [cidade.name],
+                              period: selectedYear || undefined,
+                            }),
+                            ["Ano", "Mês", "Competência", "Saldo de Postos (vagas)"],
+                          )
+                        }
+                        onExportPNG={() =>
+                          exportChartAsPNG(
+                            "modal-card-termometro",
+                            buildExportFilename("termometro_empregos", {
+                              cities: [cidade.name],
+                              period: selectedYear || undefined,
+                            }),
+                          )
+                        }
+                      />
                     </div>
                   </div>
 
-                  <div className="h-60 w-full pt-2 relative">
+                  <div className="px-5 sm:px-6 pb-4 h-60 w-full pt-2 relative">
                     {loadingRealData ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                         <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
@@ -1771,6 +1924,18 @@ export function CidadeDetalhesModal({
                       </ResponsiveContainer>
                     )}
                   </div>
+                  <ChartExportFooter
+                    scope={cidade.name}
+                    period={selectedYear || undefined}
+                    warningNote={
+                      dataStatus === "partial"
+                        ? "Obs.: dados parciais neste município"
+                        : dataStatus === "unavailable"
+                          ? "Obs.: dados indisponíveis"
+                          : null
+                    }
+                    roundedBottom={false}
+                  />
                 </div>
               </div>
             </div>

@@ -6,9 +6,70 @@ export interface ManagerScope {
   slug: string;
 }
 
+export interface ManagerCityOption {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface ManagerSession {
   username: string;
+  is_superuser?: boolean;
   scopes: ManagerScope[];
+  cities?: ManagerCityOption[];
+}
+
+export interface AdminManagerRecord {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  is_staff: boolean;
+  date_joined: string;
+  last_login: string | null;
+  cidade_id: number | null;
+  cidade_name: string | null;
+  igr_id: number | null;
+  igr_name: string | null;
+  tipo: "cidade" | "igr" | "ambos" | "sem_vinculo";
+}
+
+export interface AdminManagerCreateInput {
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+  is_staff?: boolean;
+  cidade?: number | null;
+  igr?: number | null;
+  password: string;
+}
+
+export interface AdminManagerUpdateInput {
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+  is_staff?: boolean;
+  cidade?: number | null;
+  igr?: number | null;
+}
+
+export type ManagerTargetType = "cidade" | "igr" | "evento" | "ponto_turistico" | "noticia";
+
+export interface ManagerImagem {
+  id: number;
+  image: string;
+  alt_text?: string | null;
+  caption?: string | null;
+  order: number;
+  is_cover: boolean;
+  entity_type?: string;
+  entity_id?: number;
 }
 
 export interface ManagerCity {
@@ -18,6 +79,7 @@ export interface ManagerCity {
   description: string;
   state: number;
   state_name: string;
+  imagens?: ManagerImagem[];
 }
 
 export interface ManagerIGR {
@@ -25,6 +87,7 @@ export interface ManagerIGR {
   name: string;
   slug: string;
   description: string;
+  imagens?: ManagerImagem[];
 }
 
 export interface ManagerNews {
@@ -41,10 +104,68 @@ export interface ManagerNews {
   author: string;
   source_url: string;
   tags: string[];
+  imagens?: ManagerImagem[];
 }
 
-export type ManagerNewsInput = Omit<ManagerNews, "id" | "cidade" | "igr">
-  & Partial<Pick<ManagerNews, "cidade" | "igr">>;
+export type ManagerNewsInput = Omit<ManagerNews, "id" | "cidade" | "igr" | "imagens"> &
+  Partial<Pick<ManagerNews, "cidade" | "igr">>;
+
+export interface ManagerEvento {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  start_date: string;
+  end_date: string | null;
+  is_featured: boolean;
+  popularity: number;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  cidade: number;
+  cidade_name?: string;
+  imagens?: ManagerImagem[];
+}
+
+export type ManagerEventoInput = Omit<ManagerEvento, "id" | "slug" | "cidade_name" | "imagens"> & {
+  slug?: string;
+};
+
+export interface ManagerPontoTuristico {
+  id: number;
+  name: string;
+  slug: string;
+  category: string;
+  description: string;
+  is_featured: boolean;
+  popularity: number;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  cidade: number;
+  cidade_name?: string;
+  imagens?: ManagerImagem[];
+}
+
+export type ManagerPontoTuristicoInput = Omit<
+  ManagerPontoTuristico,
+  "id" | "slug" | "cidade_name" | "imagens"
+> & {
+  slug?: string;
+};
+
+export interface ManagerLocalGeo {
+  id: number;
+  cnpj_completo?: string | null;
+  nome: string;
+  categoria: string;
+  endereco: string;
+  telefone: string;
+  cidade: number;
+  cidade_name?: string;
+  latitude: string | number;
+  longitude: string | number;
+}
+
+export type ManagerLocalGeoInput = Omit<ManagerLocalGeo, "id" | "cidade_name">;
 
 interface ApiPage<T> {
   count: number;
@@ -143,10 +264,7 @@ export async function updateManagerRecord<T extends ManagerCity | ManagerIGR>(
   });
 }
 
-export async function saveManagerNews(
-  values: ManagerNewsInput,
-  id?: number,
-): Promise<ManagerNews> {
+export async function saveManagerNews(values: ManagerNewsInput, id?: number): Promise<ManagerNews> {
   return managerRequest<ManagerNews>({
     method: id ? "PATCH" : "POST",
     url: managerUrl(`noticias/${id ? `${id}/` : ""}`),
@@ -160,3 +278,89 @@ export async function deleteManagerNews(id: number): Promise<void> {
     url: managerUrl(`noticias/${id}/`),
   });
 }
+
+async function saveManagerEntity<T, TInput>(
+  resource: string,
+  values: TInput,
+  id?: number,
+): Promise<T> {
+  return managerRequest<T>({
+    method: id ? "PATCH" : "POST",
+    url: managerUrl(`${resource}/${id ? `${id}/` : ""}`),
+    data: values,
+  });
+}
+
+async function deleteManagerEntity(resource: string, id: number): Promise<void> {
+  await managerRequest<void>({
+    method: "DELETE",
+    url: managerUrl(`${resource}/${id}/`),
+  });
+}
+
+export const saveManagerEvent = (values: ManagerEventoInput, id?: number) =>
+  saveManagerEntity<ManagerEvento, ManagerEventoInput>("eventos", values, id);
+export const deleteManagerEvent = (id: number) => deleteManagerEntity("eventos", id);
+
+export const saveManagerPonto = (values: ManagerPontoTuristicoInput, id?: number) =>
+  saveManagerEntity<ManagerPontoTuristico, ManagerPontoTuristicoInput>(
+    "pontos-turisticos",
+    values,
+    id,
+  );
+export const deleteManagerPonto = (id: number) => deleteManagerEntity("pontos-turisticos", id);
+
+export const saveManagerLocal = (values: ManagerLocalGeoInput, id?: number) =>
+  saveManagerEntity<ManagerLocalGeo, ManagerLocalGeoInput>("locais", values, id);
+export const deleteManagerLocal = (id: number) => deleteManagerEntity("locais", id);
+
+export async function uploadManagerImage(formData: FormData): Promise<ManagerImagem> {
+  return managerRequest<ManagerImagem>({
+    method: "POST",
+    url: managerUrl("imagens/"),
+    data: formData,
+  });
+}
+
+export async function setCoverManagerImage(id: number): Promise<ManagerImagem> {
+  return managerRequest<ManagerImagem>({
+    method: "PATCH",
+    url: managerUrl(`imagens/${id}/`),
+    data: { is_cover: true },
+  });
+}
+
+export async function deleteManagerImage(id: number): Promise<void> {
+  await deleteManagerEntity("imagens", id);
+}
+
+export async function getAdminManagers(
+  search?: string,
+  tipo?: string,
+): Promise<AdminManagerRecord[]> {
+  const params = new URLSearchParams();
+  if (search?.trim()) params.set("search", search.trim());
+  if (tipo && tipo !== "todos") params.set("tipo", tipo);
+  const query = params.toString();
+  return getManagerCollection<AdminManagerRecord>(`admin-gestores/${query ? `?${query}` : ""}`);
+}
+
+export const createAdminManager = (values: AdminManagerCreateInput) =>
+  saveManagerEntity<AdminManagerRecord, AdminManagerCreateInput>("admin-gestores", values);
+
+export const updateAdminManager = (id: number, values: AdminManagerUpdateInput) =>
+  saveManagerEntity<AdminManagerRecord, AdminManagerUpdateInput>("admin-gestores", values, id);
+
+export async function resetAdminManagerPassword(
+  id: number,
+  newPassword: string,
+  confirmPassword: string,
+): Promise<{ detail: string }> {
+  return managerRequest<{ detail: string }>({
+    method: "POST",
+    url: managerUrl(`admin-gestores/${id}/alterar-senha/`),
+    data: { new_password: newPassword, confirm_password: confirmPassword },
+  });
+}
+
+export const deleteAdminManager = (id: number) => deleteManagerEntity("admin-gestores", id);

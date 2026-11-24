@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Preencha todos os campos obrigatórios (Nome, E-mail, Telefone, Cargo e Vínculo).",
+          message:
+            "Preencha todos os campos obrigatórios (Nome, E-mail, Telefone, Cargo e Vínculo).",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
           success: false,
           message: "A senha desejada para cadastro deve conter no mínimo 6 caracteres.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,6 +54,23 @@ export async function POST(request: NextRequest) {
     let upstreamSuccess = false;
     let upstreamData: unknown = null;
 
+    const upstreamPayload = {
+      nome: String(nome).trim(),
+      email: String(email).trim(),
+      telefone: String(telefone).trim(),
+      cargo: String(cargo).trim(),
+      orgao: orgao ? String(orgao).trim() : "",
+      tipoVinculo: String(tipoVinculo).trim(),
+      cidadeNome: cidadeNome ? String(cidadeNome).trim() : "",
+      igrNome: igrNome ? String(igrNome).trim() : "",
+      modulos: finalModulos.map((m) => String(m)),
+      emailCadastro: emailCadastro ? String(emailCadastro).trim() : String(email).trim(),
+      justificativa: justificativa ? String(justificativa).trim() : "",
+      protocolo,
+      data_solicitacao: dataRecebimento,
+      status: "pendente",
+    };
+
     try {
       const baseUrl = getWebsiteApiBaseUrl();
       const upstreamUrl = `${baseUrl}/solicitacoes-gestor/`;
@@ -63,39 +81,52 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          ...body,
-          modulos: finalModulos,
-          protocolo,
-          data_solicitacao: dataRecebimento,
-          status: "pendente",
-        }),
+        body: JSON.stringify(upstreamPayload),
         cache: "no-store",
       });
 
+      upstreamData = await upstreamRes.json().catch(() => null);
       if (upstreamRes.ok) {
         upstreamSuccess = true;
-        upstreamData = await upstreamRes.json().catch(() => null);
+      } else {
+        const upstreamErr =
+          typeof upstreamData === "object" &&
+          upstreamData !== null &&
+          "detail" in upstreamData &&
+          typeof (upstreamData as { detail?: unknown }).detail === "string"
+            ? (upstreamData as { detail: string }).detail
+            : "Não foi possível enviar o e-mail de solicitação no momento. Verifique os dados e tente novamente.";
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: upstreamErr,
+          },
+          { status: upstreamRes.status >= 400 ? upstreamRes.status : 502 },
+        );
       }
-    } catch (upstreamErr) {
-      // Backend ainda não implementou o endpoint ou está indisponível
-      console.warn("Aviso: backend upstream /solicitacoes-gestor/ não respondeu:", upstreamErr);
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Não foi possível conectar ao servidor para enviar o e-mail da solicitação. Tente novamente em instantes.",
+        },
+        { status: 502 },
+      );
     }
 
-    // Registra no console do servidor para auditoria/integração (sem expor a senha em claro)
-    console.info(`[INSCRIÇÃO DE GESTOR REGISTRADA - Protocolo: ${protocolo}]`, {
-      nome,
-      email,
-      emailCadastro: emailCadastro || email,
+    const finalProtocolo =
+      typeof upstreamData === "object" &&
+      upstreamData !== null &&
+      "protocolo" in upstreamData &&
+      typeof (upstreamData as { protocolo?: unknown }).protocolo === "string"
+        ? (upstreamData as { protocolo: string }).protocolo
+        : protocolo;
+
+    console.info(`[INSCRIÇÃO DE GESTOR REGISTRADA - Protocolo: ${finalProtocolo}]`, {
+      tipoVinculo: upstreamPayload.tipoVinculo,
       senhaDefinida: Boolean(senha),
-      telefone,
-      cargo,
-      orgao,
-      tipoVinculo,
-      cidadeNome,
-      igrNome,
-      modulos: finalModulos,
-      justificativa,
       dataRecebimento,
       upstreamSuccess,
     });
@@ -103,10 +134,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        protocolo,
+        protocolo: finalProtocolo,
         dataRecebimento,
         message:
-          "Sua solicitação de inscrição foi enviada com sucesso! Os dados foram encaminhados para a equipe do Observatório para análise e aprovação. Suas credenciais serão validadas e ativadas após a moderação.",
+          "Sua solicitação foi enviada por e-mail para a equipe do Observatório (observatoriodoturismomg@gmail.com) e registrada com sucesso para análise.",
         detalhes: {
           nome,
           email,
@@ -119,7 +150,7 @@ export async function POST(request: NextRequest) {
           ...(typeof upstreamData === "object" && upstreamData !== null ? upstreamData : {}),
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Erro ao processar formulário de inscrição:", error);
@@ -128,7 +159,7 @@ export async function POST(request: NextRequest) {
         success: false,
         message: "Ocorreu um erro interno ao processar a inscrição. Tente novamente mais tarde.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

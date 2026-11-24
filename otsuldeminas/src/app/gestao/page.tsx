@@ -1,24 +1,35 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
   AlertCircle,
   Building2,
   CalendarClock,
+  CalendarDays,
   Check,
   ChevronDown,
   CirclePlus,
+  Compass,
   Layers,
   LoaderCircle,
   LogOut,
   Newspaper,
   Pencil,
   Save,
+  ShieldCheck,
   Trash2,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Header } from "@/components/Header";
+import {
+  ManagerEventsSection,
+  ManagerLocaisSection,
+  ManagerPontosSection,
+} from "@/components/ManagerCatalogSections";
+import { ManagerImageManager } from "@/components/ManagerImageManager";
 import { ManagerRichTextEditor } from "@/components/ManagerRichTextEditor";
 import {
   deleteManagerNews,
@@ -26,13 +37,20 @@ import {
   getManagerSession,
   logoutManager,
   ManagerCity,
+  ManagerCityOption,
+  ManagerEvento,
   ManagerIGR,
+  ManagerLocalGeo,
   ManagerNews,
   ManagerNewsInput,
+  ManagerPontoTuristico,
   ManagerSession,
   saveManagerNews,
   updateManagerRecord,
 } from "@/lib/manager-api";
+import { slugify } from "@/lib/utils";
+
+type ManagerTab = "entidade" | "noticias" | "eventos" | "atrativos" | "locais";
 
 interface EntityFields {
   name: string;
@@ -72,16 +90,6 @@ function defaultNewsFields(): NewsFields {
   };
 }
 
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError<{ detail?: string }>(error)) {
     return error.response?.data?.detail || "Não foi possível concluir a operação.";
@@ -93,11 +101,13 @@ function ManagerEntityEditor<T extends ManagerCity | ManagerIGR>({
   entity,
   label,
   endpoint,
+  targetType,
   onSaved,
 }: {
   entity: T;
   label: string;
   endpoint: "cidades" | "igrs";
+  targetType: "cidade" | "igr";
   onSaved: (record: T) => void;
 }) {
   const [fields, setFields] = useState<EntityFields>({
@@ -130,67 +140,103 @@ function ManagerEntityEditor<T extends ManagerCity | ManagerIGR>({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-[#1D5C1B]">
-          {endpoint === "cidades" ? <Building2 className="h-5 w-5" /> : <Layers className="h-5 w-5" />}
-        </span>
-        <div>
-          <h2 className="font-bold text-slate-900">Dados de {label}</h2>
-          <p className="text-xs text-slate-500">Atualize as informações públicas vinculadas à sua conta.</p>
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-[#1D5C1B]">
+            {endpoint === "cidades" ? (
+              <Building2 className="h-5 w-5" />
+            ) : (
+              <Layers className="h-5 w-5" />
+            )}
+          </span>
+          <div>
+            <h2 className="font-bold text-slate-900">Dados de {label}</h2>
+            <p className="text-xs text-slate-500">
+              Atualize as informações públicas e fotos vinculadas à sua conta.
+            </p>
+          </div>
         </div>
-      </div>
-      <label className="block text-sm font-semibold text-slate-700">
-        Nome
-        <input
-          required
-          maxLength={255}
-          value={fields.name}
-          onChange={(event) => setFields((current) => ({ ...current, name: event.target.value }))}
-          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-        />
-      </label>
-      <label className="block text-sm font-semibold text-slate-700">
-        Slug
-        <input
-          required
-          maxLength={255}
-          value={fields.slug}
-          onChange={(event) => setFields((current) => ({ ...current, slug: event.target.value }))}
-          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-sm font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-        />
-      </label>
-      <div>
-        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descrição</label>
-        <ManagerRichTextEditor
-          label={`Descrição de ${label}`}
-          value={fields.description}
-          onChange={(description) => setFields((current) => ({ ...current, description }))}
-        />
-        <p className="mt-1.5 text-xs text-slate-500">
-          Formatação e links são aceitos; o conteúdo é sanitizado antes de ser salvo.
-        </p>
-      </div>
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      {saved && <p role="status" className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800"><Check className="h-4 w-4" /> Alterações salvas.</p>}
-      <button
-        type="submit"
-        disabled={saving}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60"
-      >
-        {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        Salvar dados
-      </button>
-    </form>
+        <label className="block text-sm font-semibold text-slate-700">
+          Nome
+          <input
+            required
+            maxLength={255}
+            value={fields.name}
+            onChange={(event) => setFields((current) => ({ ...current, name: event.target.value }))}
+            className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+          />
+        </label>
+        <label className="block text-sm font-semibold text-slate-700">
+          Slug
+          <input
+            required
+            maxLength={255}
+            value={fields.slug}
+            onChange={(event) => setFields((current) => ({ ...current, slug: event.target.value }))}
+            className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-sm font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+          />
+        </label>
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descrição</label>
+          <ManagerRichTextEditor
+            label={`Descrição de ${label}`}
+            value={fields.description}
+            onChange={(description) => setFields((current) => ({ ...current, description }))}
+          />
+          <p className="mt-1.5 text-xs text-slate-500">
+            Formatação e links são aceitos; o conteúdo é sanitizado antes de ser salvo.
+          </p>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        {saved && (
+          <p
+            role="status"
+            className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800"
+          >
+            <Check className="h-4 w-4" /> Alterações salvas.
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+        >
+          {saving ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          Salvar dados
+        </button>
+      </form>
+
+      <ManagerImageManager
+        targetType={targetType}
+        targetId={entity.id}
+        images={entity.imagens || []}
+        onChanged={(imgs) => onSaved({ ...entity, imagens: imgs })}
+        title={`Imagens de ${entity.name}`}
+      />
+    </div>
   );
 }
 
 export default function GestaoPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<ManagerTab>("entidade");
   const [manager, setManager] = useState<ManagerSession | null>(null);
-  const [city, setCity] = useState<ManagerCity | null>(null);
+  const [managedCities, setManagedCities] = useState<ManagerCity[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
   const [igr, setIgr] = useState<ManagerIGR | null>(null);
   const [news, setNews] = useState<ManagerNews[]>([]);
+  const [eventos, setEventos] = useState<ManagerEvento[]>([]);
+  const [pontos, setPontos] = useState<ManagerPontoTuristico[]>([]);
+  const [locais, setLocais] = useState<ManagerLocalGeo[]>([]);
   const [newsFields, setNewsFields] = useState<NewsFields>(defaultNewsFields);
   const [editingNews, setEditingNews] = useState<ManagerNews | null>(null);
   const [loading, setLoading] = useState(true);
@@ -208,18 +254,24 @@ export default function GestaoPage() {
     async function loadPortal() {
       try {
         const current = await getManagerSession();
-        const hasCityScope = current.scopes.some((scope) => scope.type === "cidade");
         const hasIgrScope = current.scopes.some((scope) => scope.type === "igr");
-        const [cities, igrs, items] = await Promise.all([
-          hasCityScope ? getManagerCollection<ManagerCity>("cidades/") : Promise.resolve([]),
+        const [cities, igrs, items, evItems, ptItems, locItems] = await Promise.all([
+          getManagerCollection<ManagerCity>("cidades/"),
           hasIgrScope ? getManagerCollection<ManagerIGR>("igrs/") : Promise.resolve([]),
           getManagerCollection<ManagerNews>("noticias/"),
+          getManagerCollection<ManagerEvento>("eventos/"),
+          getManagerCollection<ManagerPontoTuristico>("pontos-turisticos/"),
+          getManagerCollection<ManagerLocalGeo>("locais/"),
         ]);
         if (!active) return;
         setManager(current);
-        setCity(cities[0] || null);
+        setManagedCities(cities);
+        setSelectedCityId(cities[0]?.id ?? null);
         setIgr(igrs[0] || null);
         setNews(items);
+        setEventos(evItems);
+        setPontos(ptItems);
+        setLocais(locItems);
         setLoading(false);
       } catch (requestError) {
         if (!active) return;
@@ -232,8 +284,17 @@ export default function GestaoPage() {
       }
     }
     loadPortal();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [router]);
+
+  const allowedCityOptions: ManagerCityOption[] =
+    manager?.cities && manager.cities.length > 0
+      ? manager.cities
+      : managedCities.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
+
+  const activeCity = managedCities.find((c) => c.id === selectedCityId) || managedCities[0] || null;
 
   const handleNewsSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -242,7 +303,7 @@ export default function GestaoPage() {
     setNotice("");
     const values: ManagerNewsInput = {
       title: newsFields.title.trim(),
-      slug: slugify(newsFields.title),
+      slug: editingNews?.slug || slugify(newsFields.title),
       summary: newsFields.summary.trim(),
       content: newsFields.content,
       published_at: new Date(newsFields.publishedAt).toISOString(),
@@ -250,15 +311,21 @@ export default function GestaoPage() {
       category: newsFields.category.trim(),
       author: newsFields.author.trim(),
       source_url: newsFields.sourceUrl.trim(),
-      tags: newsFields.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      tags: newsFields.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       ...(editingNews ? { cidade: editingNews.cidade, igr: editingNews.igr } : {}),
     };
     try {
-      await saveManagerNews(values, editingNews?.id);
+      const saved = await saveManagerNews(values, editingNews?.id);
       await loadNews();
-      setEditingNews(null);
-      setNewsFields(defaultNewsFields());
-      setNotice(editingNews ? "Notícia atualizada." : "Notícia cadastrada.");
+      setEditingNews(saved);
+      setNotice(
+        editingNews
+          ? "Notícia atualizada."
+          : "Notícia publicada. Caso queira, adicione fotos na galeria abaixo.",
+      );
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -313,10 +380,21 @@ export default function GestaoPage() {
     setNewsFields(defaultNewsFields());
   };
 
+  const tabs: { id: ManagerTab; label: string; count?: number; icon: typeof Building2 }[] = [
+    { id: "entidade", label: "Entidade & Fotos", icon: Building2 },
+    { id: "noticias", label: "Notícias", count: news.length, icon: Newspaper },
+    { id: "eventos", label: "Eventos", count: eventos.length, icon: CalendarDays },
+    { id: "atrativos", label: "Atrativos Turísticos", count: pontos.length, icon: Compass },
+    { id: "locais", label: "Restaurantes & Locais", count: locais.length, icon: UtensilsCrossed },
+  ];
+
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      {/* Hero padronizado */}
-      <Header />
+      <Header
+        badge="Portal de Gestão"
+        title="Painel do Gestor"
+        subtitle="Gerencie informações da cidade ou IGR, fotos, notícias, eventos, atrativos e estabelecimentos."
+      />
       <section className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         {loading ? (
           <div className="flex min-h-64 items-center justify-center gap-3 text-slate-600">
@@ -325,210 +403,397 @@ export default function GestaoPage() {
           </div>
         ) : (
           <>
-            <div className="mb-8 flex flex-col justify-between gap-4 rounded-2xl bg-[#1D5C1B] p-5 text-white sm:flex-row sm:items-center sm:p-7">
+            <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl bg-[#1D5C1B] p-5 text-white sm:flex-row sm:items-center sm:p-7">
               <div>
                 <p className="text-sm font-semibold text-emerald-100">Área restrita</p>
                 <h1 className="mt-1 text-2xl font-extrabold">Olá, {manager?.username}</h1>
                 <p className="mt-1 text-sm text-white/80">
-                  {manager?.scopes.map((scope) => `${scope.type === "cidade" ? "Cidade" : "IGR"}: ${scope.name}`).join(" · ")}
+                  {manager?.scopes
+                    .map((scope) => `${scope.type === "cidade" ? "Cidade" : "IGR"}: ${scope.name}`)
+                    .join(" · ")}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/30 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10 sm:self-auto"
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </button>
+              <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+                {manager?.is_superuser && (
+                  <Link
+                    href="/coordenacao"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/25"
+                  >
+                    <ShieldCheck className="h-4 w-4 text-amber-300" />
+                    Gerenciar Gestores
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </button>
+              </div>
             </div>
 
             {error && (
-              <div role="alert" className="mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <div
+                role="alert"
+                className="mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}
 
-            <div className="mb-10 grid gap-5 lg:grid-cols-2">
-              {city && (
-                <ManagerEntityEditor
-                  entity={city}
-                  label={`a cidade de ${city.name}`}
-                  endpoint="cidades"
-                  onSaved={setCity}
-                />
-              )}
-              {igr && (
-                <ManagerEntityEditor
-                  entity={igr}
-                  label={igr.name}
-                  endpoint="igrs"
-                  onSaved={setIgr}
-                />
-              )}
+            {/* Navegação por abas */}
+            <div className="mb-8 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+              {tabs.map((tab) => {
+                const active = activeTab === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setError("");
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+                      active
+                        ? "bg-[#1D5C1B] text-white shadow-sm"
+                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                    {tab.count !== undefined && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-slate-900">
-                  <Newspaper className="h-5 w-5 text-[#359830]" />
-                  Notícias
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">Cadastre e edite notícias da sua cidade ou IGR.</p>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-[#1D5C1B]">
-                {news.length} {news.length === 1 ? "notícia" : "notícias"}
-              </span>
-            </div>
+            {activeTab === "entidade" && (
+              <div className="space-y-6">
+                {managedCities.length > 1 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Selecione o município vinculado à IGR para editar dados e galeria:
+                    </span>
+                    <select
+                      value={selectedCityId ?? ""}
+                      onChange={(e) => setSelectedCityId(Number(e.target.value))}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-[#359830]"
+                    >
+                      {managedCities.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
-              <form onSubmit={handleNewsSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-bold text-slate-900">
-                    {editingNews ? "Editar notícia" : "Cadastrar notícia"}
-                  </h3>
-                  {editingNews && (
-                    <button type="button" onClick={clearNewsForm} className="text-xs font-semibold text-slate-600 hover:text-slate-900">
-                      Cancelar edição
-                    </button>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {activeCity && (
+                    <ManagerEntityEditor
+                      entity={activeCity}
+                      label={`a cidade de ${activeCity.name}`}
+                      endpoint="cidades"
+                      targetType="cidade"
+                      onSaved={(updated) =>
+                        setManagedCities((prev) =>
+                          prev.map((c) => (c.id === updated.id ? updated : c)),
+                        )
+                      }
+                    />
+                  )}
+                  {igr && (
+                    <ManagerEntityEditor
+                      entity={igr}
+                      label={igr.name}
+                      endpoint="igrs"
+                      targetType="igr"
+                      onSaved={setIgr}
+                    />
                   )}
                 </div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Título
-                  <input
-                    required
-                    maxLength={255}
-                    value={newsFields.title}
-                    onChange={(event) => setNewsFields((current) => ({ ...current, title: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                  />
-                </label>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Resumo
-                  <textarea
-                    rows={3}
-                    value={newsFields.summary}
-                    onChange={(event) => setNewsFields((current) => ({ ...current, summary: event.target.value }))}
-                    className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                  />
-                </label>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Conteúdo</label>
-                  <ManagerRichTextEditor
-                    label="Conteúdo da notícia"
-                    value={newsFields.content}
-                    onChange={(content) => setNewsFields((current) => ({ ...current, content }))}
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Data de publicação
-                    <input
-                      required
-                      type="datetime-local"
-                      value={newsFields.publishedAt}
-                      onChange={(event) => setNewsFields((current) => ({ ...current, publishedAt: event.target.value }))}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Categoria
-                    <input
-                      maxLength={100}
-                      value={newsFields.category}
-                      onChange={(event) => setNewsFields((current) => ({ ...current, category: event.target.value }))}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Autor
-                    <input
-                      maxLength={255}
-                      value={newsFields.author}
-                      onChange={(event) => setNewsFields((current) => ({ ...current, author: event.target.value }))}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Link da fonte
-                    <input
-                      type="url"
-                      maxLength={500}
-                      value={newsFields.sourceUrl}
-                      onChange={(event) => setNewsFields((current) => ({ ...current, sourceUrl: event.target.value }))}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                    />
-                  </label>
-                </div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Tags separadas por vírgula
-                  <input
-                    value={newsFields.tags}
-                    onChange={(event) => setNewsFields((current) => ({ ...current, tags: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
-                  />
-                </label>
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={newsFields.isFeatured}
-                    onChange={(event) => setNewsFields((current) => ({ ...current, isFeatured: event.target.checked }))}
-                    className="h-4 w-4 accent-[#1D5C1B]"
-                  />
-                  Marcar como destaque
-                </label>
-                {notice && <p role="status" className="text-sm font-semibold text-emerald-800">{notice}</p>}
-                <button
-                  type="submit"
-                  disabled={savingNews}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-3 font-bold text-white transition hover:bg-[#287524] disabled:opacity-60"
-                >
-                  {savingNews
-                    ? <LoaderCircle className="h-4 w-4 animate-spin" />
-                    : editingNews ? <Save className="h-4 w-4" /> : <CirclePlus className="h-4 w-4" />}
-                  {savingNews ? "Salvando..." : editingNews ? "Salvar notícia" : "Publicar notícia"}
-                </button>
-              </form>
+              </div>
+            )}
 
-              <section className="space-y-3">
-                <h3 className="font-bold text-slate-900">Notícias cadastradas</h3>
-                {news.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-7 text-center text-sm text-slate-600">
-                    Nenhuma notícia cadastrada para sua área.
-                  </div>
-                ) : (
-                  news.map((item) => (
-                    <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h4 className="font-bold leading-snug text-slate-900">{item.title}</h4>
-                          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                            <CalendarClock className="h-3.5 w-3.5" />
-                            {new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(item.published_at))}
-                            {item.is_featured && <span className="ml-1 rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">Destaque</span>}
-                          </p>
-                        </div>
-                        <details className="relative shrink-0">
-                          <summary aria-label={`Ações para ${item.title}`} className="flex cursor-pointer list-none items-center gap-1 rounded-lg p-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
-                            Ações <ChevronDown className="h-4 w-4" />
-                          </summary>
-                          <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                            <button type="button" onClick={() => startEditingNews(item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">
-                              <Pencil className="h-4 w-4" /> Editar
-                            </button>
-                            <button type="button" onClick={() => removeNews(item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
-                              <Trash2 className="h-4 w-4" /> Excluir
-                            </button>
+            {activeTab === "noticias" && (
+              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
+                <div className="space-y-4">
+                  <form
+                    onSubmit={handleNewsSubmit}
+                    className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-bold text-slate-900">
+                        {editingNews ? "Editar notícia" : "Cadastrar notícia"}
+                      </h3>
+                      {editingNews && (
+                        <button
+                          type="button"
+                          onClick={clearNewsForm}
+                          className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                        >
+                          Nova notícia
+                        </button>
+                      )}
+                    </div>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Título
+                      <input
+                        required
+                        maxLength={255}
+                        value={newsFields.title}
+                        onChange={(event) =>
+                          setNewsFields((current) => ({ ...current, title: event.target.value }))
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Resumo
+                      <textarea
+                        rows={3}
+                        value={newsFields.summary}
+                        onChange={(event) =>
+                          setNewsFields((current) => ({ ...current, summary: event.target.value }))
+                        }
+                        className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                      />
+                    </label>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Conteúdo
+                      </label>
+                      <ManagerRichTextEditor
+                        label="Conteúdo da notícia"
+                        value={newsFields.content}
+                        onChange={(content) =>
+                          setNewsFields((current) => ({ ...current, content }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Data de publicação
+                        <input
+                          required
+                          type="datetime-local"
+                          value={newsFields.publishedAt}
+                          onChange={(event) =>
+                            setNewsFields((current) => ({
+                              ...current,
+                              publishedAt: event.target.value,
+                            }))
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                        />
+                      </label>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Categoria
+                        <input
+                          maxLength={100}
+                          value={newsFields.category}
+                          onChange={(event) =>
+                            setNewsFields((current) => ({
+                              ...current,
+                              category: event.target.value,
+                            }))
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                        />
+                      </label>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Autor
+                        <input
+                          maxLength={255}
+                          value={newsFields.author}
+                          onChange={(event) =>
+                            setNewsFields((current) => ({ ...current, author: event.target.value }))
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                        />
+                      </label>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Link da fonte
+                        <input
+                          type="url"
+                          maxLength={500}
+                          value={newsFields.sourceUrl}
+                          onChange={(event) =>
+                            setNewsFields((current) => ({
+                              ...current,
+                              sourceUrl: event.target.value,
+                            }))
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                        />
+                      </label>
+                    </div>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Tags separadas por vírgula
+                      <input
+                        value={newsFields.tags}
+                        onChange={(event) =>
+                          setNewsFields((current) => ({ ...current, tags: event.target.value }))
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830] focus:ring-2 focus:ring-[#359830]/20"
+                      />
+                    </label>
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newsFields.isFeatured}
+                        onChange={(event) =>
+                          setNewsFields((current) => ({
+                            ...current,
+                            isFeatured: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#1D5C1B]"
+                      />
+                      Marcar como destaque
+                    </label>
+                    {notice && (
+                      <p role="status" className="text-sm font-semibold text-emerald-800">
+                        {notice}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={savingNews}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-3 font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+                    >
+                      {savingNews ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : editingNews ? (
+                        <Save className="h-4 w-4" />
+                      ) : (
+                        <CirclePlus className="h-4 w-4" />
+                      )}
+                      {savingNews
+                        ? "Salvando..."
+                        : editingNews
+                          ? "Salvar notícia"
+                          : "Publicar notícia"}
+                    </button>
+                  </form>
+
+                  {editingNews && (
+                    <ManagerImageManager
+                      targetType="noticia"
+                      targetId={editingNews.id}
+                      images={editingNews.imagens || []}
+                      onChanged={(imgs) => {
+                        const updated = { ...editingNews, imagens: imgs };
+                        setEditingNews(updated);
+                        setNews((prev) => prev.map((n) => (n.id === editingNews.id ? updated : n)));
+                      }}
+                      title={`Fotos de "${editingNews.title}"`}
+                    />
+                  )}
+                </div>
+
+                <section className="space-y-3">
+                  <h3 className="font-bold text-slate-900">Notícias cadastradas</h3>
+                  {news.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-7 text-center text-sm text-slate-600">
+                      Nenhuma notícia cadastrada para sua área.
+                    </div>
+                  ) : (
+                    news.map((item) => (
+                      <article
+                        key={item.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h4 className="font-bold leading-snug text-slate-900">{item.title}</h4>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                              <CalendarClock className="h-3.5 w-3.5" />
+                              {new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
+                                new Date(item.published_at),
+                              )}
+                              {item.is_featured && (
+                                <span className="ml-1 rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">
+                                  Destaque
+                                </span>
+                              )}
+                            </p>
                           </div>
-                        </details>
-                      </div>
-                      {item.summary && <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{item.summary}</p>}
-                    </article>
-                  ))
-                )}
-              </section>
-            </div>
+                          <details className="relative shrink-0">
+                            <summary
+                              aria-label={`Ações para ${item.title}`}
+                              className="flex cursor-pointer list-none items-center gap-1 rounded-lg p-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                            >
+                              Ações <ChevronDown className="h-4 w-4" />
+                            </summary>
+                            <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                              <button
+                                type="button"
+                                onClick={() => startEditingNews(item)}
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100"
+                              >
+                                <Pencil className="h-4 w-4" /> Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeNews(item)}
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" /> Excluir
+                              </button>
+                            </div>
+                          </details>
+                        </div>
+                        {item.summary && (
+                          <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                            {item.summary}
+                          </p>
+                        )}
+                      </article>
+                    ))
+                  )}
+                </section>
+              </div>
+            )}
+
+            {activeTab === "eventos" && (
+              <ManagerEventsSection
+                cities={allowedCityOptions}
+                eventos={eventos}
+                onChange={setEventos}
+                onError={setError}
+              />
+            )}
+
+            {activeTab === "atrativos" && (
+              <ManagerPontosSection
+                cities={allowedCityOptions}
+                pontos={pontos}
+                onChange={setPontos}
+                onError={setError}
+              />
+            )}
+
+            {activeTab === "locais" && (
+              <ManagerLocaisSection
+                cities={allowedCityOptions}
+                locais={locais}
+                onChange={setLocais}
+                onError={setError}
+              />
+            )}
           </>
         )}
       </section>

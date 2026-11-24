@@ -4,11 +4,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background2: #EAF4E9;
-  --site-surface: #F4FCF4;
+  --background2: #eaf4e9;
+  --site-surface: #f4fcf4;
   --highlight: #359830;
   --radius: 0.625rem;
-  --background: #EAF4E9;
+  --background: #eaf4e9;
   --foreground: #292929;
   --card: #ffffff;
   --card-foreground: #292929;
@@ -18,20 +18,20 @@
   --primary-foreground: #ffffff;
   --secondary: #287524;
   --secondary-foreground: #ffffff;
-  --muted: #EAF4E9;
+  --muted: #eaf4e9;
   --muted-foreground: #287524;
-  --accent: #C90C0F;
+  --accent: #c90c0f;
   --accent-foreground: #ffffff;
-  --destructive: #C90C0F;
-  --border: #5BAF56;
-  --input: #5BAF56;
+  --destructive: #c90c0f;
+  --border: #5baf56;
+  --input: #5baf56;
   --ring: #359830;
   --chart-1: #359830;
   --chart-2: #287524;
-  --chart-3: #1D5C1B;
-  --chart-4: #5BAF56;
-  --chart-5: #C90C0F;
-  --sidebar: #1D5C1B;
+  --chart-3: #1d5c1b;
+  --chart-4: #5baf56;
+  --chart-5: #c90c0f;
+  --sidebar: #1d5c1b;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #359830;
   --sidebar-primary-foreground: #ffffff;
@@ -43,15 +43,15 @@
 
 @theme inline {
   /* Substituindo a paleta base (slate) para forçar o tema verde IF em todo o site */
-  --color-slate-50: #FFFFFF;
-  --color-slate-100: #EAF4E9;
-  --color-slate-200: #EAF4E9;
-  --color-slate-300: #5BAF56;
-  --color-slate-400: #5BAF56;
+  --color-slate-50: #ffffff;
+  --color-slate-100: #eaf4e9;
+  --color-slate-200: #eaf4e9;
+  --color-slate-300: #5baf56;
+  --color-slate-400: #5baf56;
   --color-slate-500: #359830;
   --color-slate-600: #287524;
-  --color-slate-700: #1D5C1B;
-  --color-slate-800: #1D5C1B;
+  --color-slate-700: #1d5c1b;
+  --color-slate-800: #1d5c1b;
   --color-slate-900: #292929;
   --color-slate-950: #292929;
 
@@ -97,37 +97,37 @@
 }
 
 .dark {
-  --background: #1D5C1B;
-  --foreground: #FFFFFF;
-  --card: #1D5C1B;
-  --card-foreground: #FFFFFF;
-  --popover: #1D5C1B;
-  --popover-foreground: #FFFFFF;
-  --primary: #5BAF56;
+  --background: #1d5c1b;
+  --foreground: #ffffff;
+  --card: #1d5c1b;
+  --card-foreground: #ffffff;
+  --popover: #1d5c1b;
+  --popover-foreground: #ffffff;
+  --primary: #5baf56;
   --primary-foreground: #ffffff;
   --secondary: #287524;
   --secondary-foreground: #ffffff;
   --muted: #287524;
-  --muted-foreground: #EAF4E9;
-  --accent: #C90C0F;
+  --muted-foreground: #eaf4e9;
+  --accent: #c90c0f;
   --accent-foreground: #ffffff;
-  --destructive: #C90C0F;
-  --border: #5BAF56;
-  --input: #5BAF56;
-  --ring: #5BAF56;
-  --chart-1: #5BAF56;
+  --destructive: #c90c0f;
+  --border: #5baf56;
+  --input: #5baf56;
+  --ring: #5baf56;
+  --chart-1: #5baf56;
   --chart-2: #359830;
   --chart-3: #287524;
-  --chart-4: #EAF4E9;
-  --chart-5: #C90C0F;
-  --sidebar: #1D5C1B;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #5BAF56;
+  --chart-4: #eaf4e9;
+  --chart-5: #c90c0f;
+  --sidebar: #1d5c1b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #5baf56;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #287524;
-  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #287524;
-  --sidebar-ring: #5BAF56;
+  --sidebar-ring: #5baf56;
 }
 
 @layer base {
@@ -154,4 +154,86 @@
 
 .recharts-legend-item-text {
   @apply !text-muted-foreground !text-xs;
+}
+
+/* Rich-text content rendered from CKEditor5 / ManagerRichTextEditor */
+.rich-text-content {
+  @apply text-slate-700 leading-relaxed break-words;
+}
+
+.rich-text-content h1 {
+  @apply text-2xl sm:text-3xl font-extrabold text-slate-900 mt-5 mb-3 leading-tight;
+}
+
+.rich-text-content h2 {
+  @apply text-xl sm:text-2xl font-bold text-[#1D5C1B] mt-4 mb-2.5 leading-snug;
+}
+
+.rich-text-content h3 {
+  @apply text-lg font-bold text-slate-800 mt-3.5 mb-2 leading-snug;
+}
+
+.rich-text-content h4,
+.rich-text-content h5,
+.rich-text-content h6 {
+  @apply text-base font-bold text-slate-800 mt-3 mb-1.5;
+}
+
+.rich-text-content p {
+  @apply my-2.5 leading-relaxed;
+}
+
+.rich-text-content strong,
+.rich-text-content b {
+  @apply font-bold text-slate-900;
+}
+
+.rich-text-content em,
+.rich-text-content i {
+  @apply italic;
+}
+
+.rich-text-content u {
+  @apply underline underline-offset-2;
+}
+
+.rich-text-content s {
+  @apply line-through;
+}
+
+.rich-text-content ul {
+  @apply list-disc pl-6 my-2.5 space-y-1;
+}
+
+.rich-text-content ol {
+  @apply list-decimal pl-6 my-2.5 space-y-1;
+}
+
+.rich-text-content li > p {
+  @apply my-0.5;
+}
+
+.rich-text-content blockquote {
+  @apply border-l-4 border-[#359830] bg-[#EAF4E9]/50 pl-4 pr-3 py-2 my-3 italic text-slate-700 rounded-r-lg;
+}
+
+.rich-text-content a {
+  @apply text-[#1D5C1B] font-semibold underline underline-offset-2 hover:text-[#359830];
+}
+
+.rich-text-content hr {
+  @apply my-4 border-slate-200;
+}
+
+.rich-text-content table {
+  @apply w-full border-collapse my-3 text-sm;
+}
+
+.rich-text-content th,
+.rich-text-content td {
+  @apply border border-slate-200 px-3 py-2 text-left;
+}
+
+.rich-text-content th {
+  @apply bg-[#EAF4E9] font-bold text-[#1D5C1B];
 }

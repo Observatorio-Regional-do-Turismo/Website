@@ -1,6 +1,13 @@
 /**
- * Funções utilitárias de formatação para os indicadores municipais e socioeconômicos.
+ * Funções utilitárias de formatação para indicadores municipais, datas e métricas socioeconômicas.
  */
+
+export function formatarNumero(valor: number | string | null | undefined): string {
+  if (valor === null || valor === undefined || valor === "") return "—";
+  const num = Number(String(valor).replace(/[^\d.-]/g, ""));
+  if (Number.isNaN(num)) return String(valor);
+  return num.toLocaleString("pt-BR");
+}
 
 export function formatarPopulacao(pop: number | string | null | undefined): string {
   if (pop === null || pop === undefined || pop === "") return "—";
@@ -17,8 +24,9 @@ export function formatarPIB(pib: number | string | null | undefined): string {
   if (str.startsWith("R$")) return str;
   const num = Number(str.replace(/[^\d.-]/g, ""));
   if (isNaN(num) || num === 0) return str;
-  
-  const valorTotal = num > 10_000_000 ? num : (num > 1000 ? num * 1000 : num);
+
+  // IBGE Agregado 5938 informa em Mil Reais
+  const valorTotal = num > 10_000_000 ? num : num > 1000 ? num * 1000 : num;
   if (valorTotal >= 1_000_000_000) {
     return `R$ ${(valorTotal / 1_000_000_000).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} Bi`;
   }
@@ -26,6 +34,24 @@ export function formatarPIB(pib: number | string | null | undefined): string {
     return `R$ ${(valorTotal / 1_000_000).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} Mi`;
   }
   return `R$ ${valorTotal.toLocaleString("pt-BR")}`;
+}
+
+export function formatarPIBPerCapita(valor: number | string | null | undefined): string {
+  if (valor === null || valor === undefined || valor === "") return "—";
+  const num = Number(
+    String(valor)
+      .replace(",", ".")
+      .replace(/[^\d.-]/g, ""),
+  );
+  if (isNaN(num) || num <= 0) return "—";
+  return `R$ ${num.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+}
+
+export function formatarSalariosMinimos(valor: number | string | null | undefined): string {
+  if (valor === null || valor === undefined || valor === "") return "—";
+  const num = parseFloat(String(valor).replace(",", "."));
+  if (isNaN(num) || num <= 0) return "—";
+  return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} SM`;
 }
 
 export function formatarIDH(idh: number | string | null | undefined): string {
@@ -36,15 +62,23 @@ export function formatarIDH(idh: number | string | null | undefined): string {
   return num.toFixed(3).replace(".", ",");
 }
 
-export function getIDHClass(idh: number | string | null | undefined): { label: string; color: string } {
-  if (idh === null || idh === undefined || idh === "") return { label: "N/D", color: "text-slate-600 bg-slate-100 border-slate-200" };
+export function getIDHClass(idh: number | string | null | undefined): {
+  label: string;
+  color: string;
+} {
+  if (idh === null || idh === undefined || idh === "") {
+    return { label: "N/D", color: "text-slate-600 bg-slate-100 border-slate-200" };
+  }
   const str = String(idh).replace(",", ".").trim();
   const num = parseFloat(str);
   if (isNaN(num)) return { label: "IDHM", color: "text-slate-600 bg-slate-100 border-slate-200" };
-  
-  if (num >= 0.800) return { label: "Muito Alto", color: "text-[#1D5C1B] bg-[#EAF4E9] border-[#5BAF56]" };
-  if (num >= 0.700) return { label: "Alto", color: "text-[#1D5C1B] bg-[#EAF4E9] border-[#359830]/40" };
-  if (num >= 0.600) return { label: "Médio", color: "text-[#359830] bg-[#EAF4E9] border-[#5BAF56]/30" };
+
+  if (num >= 0.8)
+    return { label: "Muito Alto", color: "text-[#1D5C1B] bg-[#EAF4E9] border-[#5BAF56]" };
+  if (num >= 0.7)
+    return { label: "Alto", color: "text-[#1D5C1B] bg-[#EAF4E9] border-[#359830]/40" };
+  if (num >= 0.6)
+    return { label: "Médio", color: "text-[#359830] bg-[#EAF4E9] border-[#5BAF56]/30" };
   return { label: "Baixo", color: "text-[#C90C0F] bg-red-50 border-[#C90C0F]/30" };
 }
 
@@ -67,7 +101,9 @@ export function formatarMUNIC(munic: number | string | null | undefined): string
   const str = String(munic).trim();
   if (typeof munic === "number" || !isNaN(Number(str))) {
     const num = Number(str);
-    if (num <= 10 && num > 0) return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/10`;
+    if (num <= 10 && num > 0) {
+      return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/10`;
+    }
     return `${num.toLocaleString("pt-BR")}`;
   }
   return str;
@@ -79,7 +115,8 @@ export function formatarPNAD(pnad: number | string | null | undefined): string {
   if (str.includes("%") || str.startsWith("R$")) return str;
   const num = parseFloat(str.replace(",", "."));
   if (!isNaN(num)) {
-    if (num <= 100) return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    if (num <= 100)
+      return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
     return `R$ ${num.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   }
   return str;
@@ -110,4 +147,42 @@ export function formatarEscolarizacao(esc: number | string | null | undefined): 
   const num = parseFloat(str.replace(",", "."));
   if (isNaN(num)) return str;
   return `${num.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+export function formatarDataCurta(value?: string): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatarDataHoraCurta(value?: string, fallback = "Data a definir"): string {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+export function formatarDataCompleta(value?: string, fallback = "Data a definir"): string {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

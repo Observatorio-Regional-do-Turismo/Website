@@ -17,7 +17,13 @@ export default function AcessoPage() {
 
   useEffect(() => {
     getManagerSession()
-      .then(() => router.replace("/gestao"))
+      .then((session) => {
+        if (session.is_superuser && session.scopes.length === 0) {
+          router.replace("/coordenacao");
+        } else {
+          router.replace("/gestao");
+        }
+      })
       .catch(() => undefined);
   }, [router]);
 
@@ -26,8 +32,12 @@ export default function AcessoPage() {
     setError("");
     setSubmitting(true);
     try {
-      await loginManager(username.trim(), password);
-      router.replace("/gestao");
+      const session = await loginManager(username.trim(), password);
+      if (session.is_superuser && session.scopes.length === 0) {
+        router.replace("/coordenacao");
+      } else {
+        router.replace("/gestao");
+      }
     } catch (requestError) {
       const message = axios.isAxiosError<{ detail?: string }>(requestError)
         ? requestError.response?.data?.detail
@@ -39,8 +49,11 @@ export default function AcessoPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50">
-      {/* Hero padronizado */}
-      <Header />
+      <Header
+        badge="Área Restrita"
+        title="Acesso de Gestores"
+        subtitle="Portal autenticado para atualização de informações municipais, IGRs e notícias."
+      />
       <section className="mx-auto flex w-full max-w-lg flex-1 items-center px-4 py-12 sm:px-6">
         <div className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-9">
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-[#1D5C1B]">
@@ -74,7 +87,10 @@ export default function AcessoPage() {
               />
             </label>
             {error && (
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <p
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+              >
                 {error}
               </p>
             )}
@@ -83,7 +99,11 @@ export default function AcessoPage() {
               disabled={submitting}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-3 font-bold text-white transition hover:bg-[#287524] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {submitting ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4" />
+              )}
               {submitting ? "Verificando..." : "Entrar"}
             </button>
           </form>
@@ -91,6 +111,15 @@ export default function AcessoPage() {
             Contas são criadas manualmente pela equipe.{" "}
             <Link href="/fale-conosco" className="font-semibold text-[#1D5C1B] hover:underline">
               Fale conosco
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-xs text-slate-500">
+            Coordenação Geral?{" "}
+            <Link
+              href="/coordenacao/acesso"
+              className="font-semibold text-[#1D5C1B] hover:underline"
+            >
+              Acesso administrativo
             </Link>
           </p>
         </div>

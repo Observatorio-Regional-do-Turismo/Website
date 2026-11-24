@@ -4,15 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import logo from "@/assets/Logo_otsuldeminas.png";
-import { 
+import {
   Home as HomeIcon,
-  // Map, 
-  BarChart3, 
-  // FileText, 
+  Map,
+  BarChart3,
+  // FileText,
   Menu,
   X,
   Building2,
   CalendarDays,
+  Compass,
   // GraduationCap,
   Award,
   Newspaper,
@@ -27,9 +28,10 @@ export function Navbar() {
     { name: "Home", icon: HomeIcon, path: "/" },
     { name: "Visão Geral", icon: BarChart3, path: "/dashboard" },
     { name: "Cidades", icon: Building2, path: "/cidades" },
+    { name: "Atrativos", icon: Compass, path: "/atrativos" },
     { name: "IGRs", icon: Award, path: "/selos" },
     { name: "Notícias", icon: Newspaper, path: "/noticias" },
-    // { name: "Mapa", icon: Map, path: "/mapa" },
+    { name: "Mapa", icon: Map, path: "/mapa" },
     { name: "Eventos", icon: CalendarDays, path: "/eventos" },
     // { name: "Cursos", icon: GraduationCap, path: "/cursos" },
     // { name: "Relatórios", icon: FileText, path: "/relatorios" },
@@ -46,7 +48,7 @@ export function Navbar() {
               <div className="shrink-0 transition-opacity group-hover:opacity-90">
                 <img
                   src={logo.src}
-                  alt="Logo do Observatório de Turismo Suldeminas"
+                  alt="Logo do Observatório Regional do Turismo"
                   width={900}
                   height={650}
                   className="h-12 w-auto"

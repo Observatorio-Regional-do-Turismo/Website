@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import Link from "next/link";
 import {
   Building2,
   UtensilsCrossed,
@@ -22,7 +23,8 @@ import {
   BarChart2,
   Maximize2,
   Layers,
-  GraduationCap
+  GraduationCap,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -39,12 +41,15 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  ComposedChart
+  ComposedChart,
 } from "recharts";
 import { fetchJSONAndFlatten, getCodigoIBGEParaGraficos, globalCache } from "@/lib/api";
 import {
   formatarPopulacao,
   formatarPIB,
+  formatarPIBPerCapita,
+  formatarSalariosMinimos,
+  formatarNumero,
   formatarIDH,
   getIDHClass,
   formatarHospedagem,
@@ -53,10 +58,13 @@ import {
   formatarPNAD,
   formatarArea,
   formatarDensidade,
-  formatarEscolarizacao
+  formatarEscolarizacao,
 } from "@/lib/formatters";
 import axios from "axios";
 import { NoticiaCard } from "@/components/NoticiaCard";
+import { RichTextContent } from "@/components/RichTextContent";
+import { ImageGalleryCarousel } from "@/components/ImageGalleryCarousel";
+import { ShareButton } from "@/components/ShareButton";
 import { getWebsiteApiBaseUrl } from "@/lib/website-api";
 
 interface CityRecord {
@@ -93,7 +101,11 @@ function formatarDataEvento(dateStr?: string): { dia: string; mes: string; dataF
     if (isNaN(d.getTime())) return { dia: "—", mes: "—", dataFormatada: dateStr };
     const dia = String(d.getDate()).padStart(2, "0");
     const mes = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase();
-    const dataFormatada = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const dataFormatada = d.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
     return { dia, mes, dataFormatada };
   } catch {
     return { dia: "—", mes: "—", dataFormatada: dateStr };
@@ -104,8 +116,14 @@ function temIndicador(valor: unknown): boolean {
   return valor !== null && valor !== undefined && String(valor).trim() !== "";
 }
 
-export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading = false, noticiasError = false, onSelectNoticia, onClose }: CidadeDetalhesModalProps) {
-  const [imageError, setImageError] = useState(false);
+export function CidadeDetalhesModal({
+  cidade,
+  allNoticias = [],
+  noticiasLoading = false,
+  noticiasError = false,
+  onSelectNoticia,
+  onClose,
+}: CidadeDetalhesModalProps) {
   const [cidadeDetalhesApi, setCidadeDetalhesApi] = useState<ApiCidade | null>(null);
   const [estadoNomeApi, setEstadoNomeApi] = useState<string | null>(null);
   const [realPostos, setRealPostos] = useState<CityRecord[]>([]);
@@ -136,9 +154,12 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
       baseUrl = getWebsiteApiBaseUrl();
     } catch (error) {
       console.error("Erro ao configurar a API do site:", error);
-      return () => { active = false; };
+      return () => {
+        active = false;
+      };
     }
-    axios.get<ApiCidade>(`${baseUrl}/cidades/${encodeURIComponent(cidade.id)}/`)
+    axios
+      .get<ApiCidade>(`${baseUrl}/cidades/${encodeURIComponent(cidade.id)}/`)
       .then((response) => {
         if (active) setCidadeDetalhesApi(response.data);
       })
@@ -146,7 +167,9 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
         console.warn(`Não foi possível carregar os indicadores de ${cidade.name}:`, error);
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [cidade.id, cidade.name]);
 
   useEffect(() => {
@@ -154,7 +177,9 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
     setEstadoNomeApi(null);
     const stateId = cidadeDetalhesApi?.state ?? cidade.state;
     if (stateId === null || stateId === undefined) {
-      return () => { active = false; };
+      return () => {
+        active = false;
+      };
     }
 
     let baseUrl: string;
@@ -162,9 +187,12 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
       baseUrl = getWebsiteApiBaseUrl();
     } catch (error) {
       console.error("Erro ao configurar a API do site:", error);
-      return () => { active = false; };
+      return () => {
+        active = false;
+      };
     }
-    axios.get<ApiEstado>(`${baseUrl}/estados/${encodeURIComponent(String(stateId))}/`)
+    axios
+      .get<ApiEstado>(`${baseUrl}/estados/${encodeURIComponent(String(stateId))}/`)
       .then((response) => {
         if (active) setEstadoNomeApi(response.data.name);
       })
@@ -172,7 +200,9 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
         console.warn(`Não foi possível carregar o estado da cidade ${cidade.name}:`, error);
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [cidade.id, cidade.name, cidade.state, cidadeDetalhesApi?.state]);
 
   // 1. Buscar dados analíticos da API de gráficos
@@ -180,9 +210,11 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
     if (cidade) {
       const loadGraphs = async () => {
         setLoadingRealData(true);
-        const hasCache = Boolean(globalCache['estabelecimentos'] && globalCache['funcionarios']);
+        const hasCache = Boolean(globalCache["estabelecimentos"] && globalCache["funcionarios"]);
         setProgressRealData(hasCache ? 60 : 15);
-        setProgressMessage(hasCache ? "Carregando dados em cache..." : "Buscando estabelecimentos (1/3)...");
+        setProgressMessage(
+          hasCache ? "Carregando dados em cache..." : "Buscando estabelecimentos (1/3)...",
+        );
         try {
           const rawUrl = process.env.NEXT_PUBLIC_GRAPHS_URL || "/api/externo";
           const baseUrl = rawUrl.replace(/\/$/, "");
@@ -193,7 +225,7 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
           const msgs = [
             "Processando funcionários (2/3)...",
             "Mapeando postos de trabalho da cidade (3/3)...",
-            "Calculando indicadores do município..."
+            "Calculando indicadores do município...",
           ];
 
           const updateProgress = (index: number) => {
@@ -203,13 +235,27 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
           };
 
           const [estData, funcData, postosData] = await Promise.all([
-            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, 'estabelecimentos').then(d => { updateProgress(0); return d as CityRecord[]; }),
-            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, 'funcionarios').then(d => { updateProgress(1); return d as CityRecord[]; }),
-            fetchJSONAndFlatten(codigoIBGE ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}` : `${baseUrl}/postos_de_trabalho/`, 'postos').then(d => { updateProgress(2); return d as CityRecord[]; })
+            fetchJSONAndFlatten(`${baseUrl}/estabelecimentos/`, "estabelecimentos").then((d) => {
+              updateProgress(0);
+              return d as CityRecord[];
+            }),
+            fetchJSONAndFlatten(`${baseUrl}/funcionarios/`, "funcionarios").then((d) => {
+              updateProgress(1);
+              return d as CityRecord[];
+            }),
+            fetchJSONAndFlatten(
+              codigoIBGE
+                ? `${baseUrl}/postos_de_trabalho/?codigo_ibge=${codigoIBGE}`
+                : `${baseUrl}/postos_de_trabalho/`,
+              "postos",
+            ).then((d) => {
+              updateProgress(2);
+              return d as CityRecord[];
+            }),
           ]);
 
           const normalize = (text?: unknown) =>
-            String(text ?? '')
+            String(text ?? "")
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
               .toLowerCase()
@@ -218,9 +264,12 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
           const cityTarget = normalize(cidade.name);
 
           const matchRecordCity = (r: CityRecord) => {
-            const munKey = Object.keys(r).find(k => k.toLowerCase().includes("munic")) || "Município";
+            const munKey =
+              Object.keys(r).find((k) => k.toLowerCase().includes("munic")) || "Município";
             const rowMun = normalize(r[munKey]);
-            return rowMun === cityTarget || rowMun.includes(cityTarget) || cityTarget.includes(rowMun);
+            return (
+              rowMun === cityTarget || rowMun.includes(cityTarget) || cityTarget.includes(rowMun)
+            );
           };
 
           const estCity = (estData || []).filter(matchRecordCity);
@@ -229,36 +278,42 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
 
           if (estCity.length > 0) {
             setRawPostosCity(postosCity);
-            const years = Array.from(new Set(postosCity.map((p) => String(p['Ano']))))
-              .filter(y => y && y !== 'undefined' && y !== 'null')
+            const years = Array.from(new Set(postosCity.map((p) => String(p["Ano"]))))
+              .filter((y) => y && y !== "undefined" && y !== "null")
               .sort((a, b) => Number(b) - Number(a)) as string[];
             setAvailableYears(years);
 
             const defaultYear = years.length > 0 ? years[0] : new Date().getFullYear().toString();
             setSelectedYear(defaultYear);
-            setRealPostos(postosCity.filter((r) => String(r['Ano']) === defaultYear));
+            setRealPostos(postosCity.filter((r) => String(r["Ano"]) === defaultYear));
 
             const mapFunc = new Map<string, number>();
             funcCity.forEach((f) => {
-              const classKey = Object.keys(f).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
-              const funcKey = Object.keys(f).find(k => k.toLowerCase().includes("func")) || "Funcionarios";
+              const classKey =
+                Object.keys(f).find((k) => k.toLowerCase().includes("classifica")) ||
+                "Classificação";
+              const funcKey =
+                Object.keys(f).find((k) => k.toLowerCase().includes("func")) || "Funcionarios";
               if (f[classKey]) {
                 mapFunc.set(String(f[classKey]), Number(f[funcKey]) || 0);
               }
             });
 
             const mapShortName: Record<string, string> = {
-              "Alojamento": "Hospedagem",
-              "Alimentação": "Restaurantes",
-              "Transporte": "Transporte",
+              Alojamento: "Hospedagem",
+              Alimentação: "Restaurantes",
+              Transporte: "Transporte",
               "Agências de viagens": "Agências",
               "Cultura e lazer": "Cultura",
-              "Outros serviços turísticos": "Outros"
+              "Outros serviços turísticos": "Outros",
             };
 
             const combined: CombinedCityItem[] = estCity.map((e) => {
-              const classKey = Object.keys(e).find(k => k.toLowerCase().includes("classifica")) || "Classificação";
-              const estKey = Object.keys(e).find(k => k.toLowerCase().includes("estab")) || "Estabelecimentos";
+              const classKey =
+                Object.keys(e).find((k) => k.toLowerCase().includes("classifica")) ||
+                "Classificação";
+              const estKey =
+                Object.keys(e).find((k) => k.toLowerCase().includes("estab")) || "Estabelecimentos";
               const rawClass = String(e[classKey] || "Outros");
               let shortClass = rawClass;
               for (const [key, val] of Object.entries(mapShortName)) {
@@ -271,7 +326,7 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 Classificação: shortClass,
                 ClassificacaoOriginal: rawClass,
                 Estabelecimentos: Number(e[estKey]) || 0,
-                Funcionarios: mapFunc.get(rawClass) || 0
+                Funcionarios: mapFunc.get(rawClass) || 0,
               };
             });
 
@@ -310,27 +365,42 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
           const apiBaseUrl = getWebsiteApiBaseUrl();
 
           const [pontosRes, eventosRes] = await Promise.all([
-            axios.get<ApiPagination<ApiPontoTuristico>>(`${apiBaseUrl}/pontos-turisticos/`).catch(() => ({ data: { results: [] } })),
-            axios.get<ApiPagination<ApiEventos>>(`${apiBaseUrl}/eventos/`).catch(() => ({ data: { results: [] } }))
+            axios
+              .get<ApiPagination<ApiPontoTuristico>>(`${apiBaseUrl}/pontos-turisticos/`)
+              .catch(() => ({ data: { results: [] } })),
+            axios
+              .get<ApiPagination<ApiEventos>>(`${apiBaseUrl}/eventos/`)
+              .catch(() => ({ data: { results: [] } })),
           ]);
 
-          const matchCidade = (itemCidade: number | string | ApiCidade | undefined, itemCidadeName?: string) => {
+          const matchCidade = (
+            itemCidade: number | string | ApiCidade | undefined,
+            itemCidadeName?: string,
+          ) => {
             if (itemCidade !== undefined && itemCidade !== null) {
-              if (typeof itemCidade === 'object') {
+              if (typeof itemCidade === "object") {
                 if (itemCidade.id && String(itemCidade.id) === String(cidade.id)) return true;
                 if (itemCidade.slug && itemCidade.slug === cidade.slug) return true;
               } else if (String(itemCidade) === String(cidade.id)) {
                 return true;
               }
             }
-            if (itemCidadeName && cidade.name && itemCidadeName.trim().toLowerCase() === cidade.name.trim().toLowerCase()) {
+            if (
+              itemCidadeName &&
+              cidade.name &&
+              itemCidadeName.trim().toLowerCase() === cidade.name.trim().toLowerCase()
+            ) {
               return true;
             }
             return false;
           };
 
-          const pontosDaCidade = ((pontosRes.data?.results || []) as ApiPontoTuristico[]).filter(p => matchCidade(p.cidade, p.cidade_name));
-          const eventosDaCidade = ((eventosRes.data?.results || []) as ApiEventos[]).filter(e => matchCidade(e.cidade, e.cidade_name));
+          const pontosDaCidade = ((pontosRes.data?.results || []) as ApiPontoTuristico[]).filter(
+            (p) => matchCidade(p.cidade, p.cidade_name),
+          );
+          const eventosDaCidade = ((eventosRes.data?.results || []) as ApiEventos[]).filter((e) =>
+            matchCidade(e.cidade, e.cidade_name),
+          );
 
           setPontosTuristicos(pontosDaCidade);
           setEventos(eventosDaCidade);
@@ -347,7 +417,7 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
   // Atualizar dados de postos ao selecionar outro ano
   useEffect(() => {
     if (selectedYear && rawPostosCity.length > 0) {
-      setRealPostos(rawPostosCity.filter((r) => String(r['Ano']) === selectedYear));
+      setRealPostos(rawPostosCity.filter((r) => String(r["Ano"]) === selectedYear));
     }
   }, [selectedYear, rawPostosCity]);
 
@@ -366,7 +436,6 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
   useEffect(() => {
     if (cidade) {
       document.body.style.overflow = "hidden";
-      setImageError(false);
     }
     return () => {
       document.body.style.overflow = "unset";
@@ -377,14 +446,45 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
 
   // Indicadores vêm exclusivamente do registro retornado pela API municipal.
   const information = cidadeDetalhesApi?.information ?? cidade.information;
-  const numHospedagens = temIndicador(information?.hospedagens) ? formatarHospedagem(information?.hospedagens) : null;
-  const numRestaurantes = temIndicador(information?.restaurantes) ? formatarRestaurantes(information?.restaurantes) : null;
-  const popExibida = temIndicador(information?.populacao) ? formatarPopulacao(information?.populacao) : null;
+  const numHospedagens = temIndicador(information?.hospedagens)
+    ? formatarHospedagem(information?.hospedagens)
+    : null;
+  const numRestaurantes = temIndicador(information?.restaurantes)
+    ? formatarRestaurantes(information?.restaurantes)
+    : null;
+  const popExibida = temIndicador(information?.populacao)
+    ? formatarPopulacao(information?.populacao)
+    : null;
   const pibExibido = temIndicador(information?.pib) ? formatarPIB(information?.pib) : null;
+  const popEstimadaExibida = temIndicador(information?.populacao_estimada)
+    ? formatarPopulacao(information?.populacao_estimada)
+    : null;
+  const pibPerCapitaExibido = temIndicador(information?.pib_per_capta)
+    ? formatarPIBPerCapita(information?.pib_per_capta)
+    : null;
+  const vabServicosExibido = temIndicador(information?.vab_servicos)
+    ? formatarPIB(information?.vab_servicos)
+    : null;
+  const leitosExibido = temIndicador(information?.leitos)
+    ? formatarNumero(information?.leitos)
+    : null;
+  const empresasExibido = temIndicador(information?.empresas_atuantes)
+    ? formatarNumero(information?.empresas_atuantes)
+    : null;
+  const pessoalOcupadoExibido = temIndicador(information?.pessoal_ocupado)
+    ? formatarNumero(information?.pessoal_ocupado)
+    : null;
+  const salarioMedioExibido = temIndicador(information?.salario_medio_mensal)
+    ? formatarSalariosMinimos(information?.salario_medio_mensal)
+    : null;
+  const culturaLazerExibido = temIndicador(information?.unidades_cultura_lazer)
+    ? formatarNumero(information?.unidades_cultura_lazer)
+    : null;
   const idh = information?.idh ?? information?.idhm;
   const idhExibido = formatarIDH(idh);
   const idhInfo = getIDHClass(idh);
-  const munic = information?.munic ?? information?.indicador_cultural_munic ?? information?.munic_cultura;
+  const munic =
+    information?.munic ?? information?.indicador_cultural_munic ?? information?.munic_cultura;
   const municExibido = formatarMUNIC(munic);
   const pnad = information?.pnad ?? information?.estatistica_pnad;
   const pnadExibido = formatarPNAD(pnad);
@@ -395,21 +495,163 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
   const escolarizacao = information?.escolarizacao ?? information?.taxa_escolarizacao;
   const escolarizacaoExibida = formatarEscolarizacao(escolarizacao);
   const indicadores = [
-    ...(pibExibido ? [{ label: "PIB", value: pibExibido, detail: "IBGE", icon: TrendingUp }] : []),
-    ...(popExibida ? [{ label: "População", value: popExibida, detail: "IBGE", icon: Users }] : []),
-    ...(numHospedagens ? [{ label: "Hospedagem", value: `${numHospedagens} estab.`, detail: "Estabelecimentos", icon: Building2 }] : []),
-    ...(numRestaurantes ? [{ label: "Alimentação", value: `${numRestaurantes} unid.`, detail: "Estabelecimentos", icon: UtensilsCrossed }] : []),
-    ...(temIndicador(idh) ? [{ label: "IDHM", value: idhExibido, detail: idhInfo.label, icon: Award }] : []),
-    ...(temIndicador(munic) ? [{ label: "MUNIC (Pesquisa de Informações Básicas Municipais)", value: municExibido, detail: "Indicador Cultural", icon: Sparkles }] : []),
-    ...(temIndicador(pnad) ? [{ label: "PNAD - Módulo Turismo", value: pnadExibido, detail: "Demanda Turística", icon: BarChart2 }] : []),
-    ...(temIndicador(area) ? [{ label: "Tamanho do município", value: areaExibida, detail: "Extensão territorial", icon: Maximize2 }] : []),
-    ...(temIndicador(densidade) ? [{ label: "Densidade Demográfica", value: densidadeExibida, detail: "Concentração", icon: Layers }] : []),
-    ...(temIndicador(escolarizacao) ? [{ label: "Escolarização", value: escolarizacaoExibida, detail: "Taxa de Ensino", icon: GraduationCap }] : []),
+    ...(popExibida
+      ? [{ label: "População (Censo)", value: popExibida, detail: "IBGE Censo", icon: Users }]
+      : []),
+    ...(popEstimadaExibida
+      ? [
+          {
+            label: "População Estimada",
+            value: popEstimadaExibida,
+            detail: "IBGE Estimativa",
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(pibExibido
+      ? [{ label: "PIB Municipal", value: pibExibido, detail: "IBGE", icon: TrendingUp }]
+      : []),
+    ...(pibPerCapitaExibido
+      ? [
+          {
+            label: "PIB per Capita",
+            value: pibPerCapitaExibido,
+            detail: "IBGE / Habitante",
+            icon: TrendingUp,
+          },
+        ]
+      : []),
+    ...(vabServicosExibido
+      ? [
+          {
+            label: "VAB Serviços",
+            value: vabServicosExibido,
+            detail: "Valor Adicionado (IBGE)",
+            icon: BarChart2,
+          },
+        ]
+      : []),
+    ...(numHospedagens
+      ? [
+          {
+            label: "Hospedagem",
+            value: `${numHospedagens} estab.`,
+            detail: "CEMPRE / IBGE",
+            icon: Building2,
+          },
+        ]
+      : []),
+    ...(leitosExibido
+      ? [{ label: "Leitos", value: leitosExibido, detail: "Capacidade hoteleira", icon: Building2 }]
+      : []),
+    ...(numRestaurantes
+      ? [
+          {
+            label: "Alimentação",
+            value: `${numRestaurantes} unid.`,
+            detail: "CEMPRE / IBGE",
+            icon: UtensilsCrossed,
+          },
+        ]
+      : []),
+    ...(empresasExibido
+      ? [
+          {
+            label: "Empresas Atuantes",
+            value: empresasExibido,
+            detail: "Unidades locais (CEMPRE)",
+            icon: Building2,
+          },
+        ]
+      : []),
+    ...(pessoalOcupadoExibido
+      ? [
+          {
+            label: "Pessoal Ocupado",
+            value: pessoalOcupadoExibido,
+            detail: "Vínculos totais (CEMPRE)",
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(salarioMedioExibido
+      ? [
+          {
+            label: "Salário Médio",
+            value: salarioMedioExibido,
+            detail: "Salários mínimos (IBGE)",
+            icon: Award,
+          },
+        ]
+      : []),
+    ...(culturaLazerExibido
+      ? [
+          {
+            label: "Cultura & Lazer",
+            value: `${culturaLazerExibido} unid.`,
+            detail: "Unidades locais (CEMPRE)",
+            icon: Sparkles,
+          },
+        ]
+      : []),
+    ...(temIndicador(idh)
+      ? [{ label: "IDHM", value: idhExibido, detail: idhInfo.label, icon: Award }]
+      : []),
+    ...(temIndicador(munic)
+      ? [
+          {
+            label: "MUNIC Cultura",
+            value: municExibido,
+            detail: "Indicador Cultural",
+            icon: Sparkles,
+          },
+        ]
+      : []),
+    ...(temIndicador(pnad)
+      ? [
+          {
+            label: "PNAD - Turismo",
+            value: pnadExibido,
+            detail: "Demanda Turística",
+            icon: BarChart2,
+          },
+        ]
+      : []),
+    ...(temIndicador(area)
+      ? [
+          {
+            label: "Área Territorial",
+            value: areaExibida,
+            detail: "Extensão territorial (IBGE)",
+            icon: Maximize2,
+          },
+        ]
+      : []),
+    ...(temIndicador(densidade)
+      ? [
+          {
+            label: "Densidade Demográfica",
+            value: densidadeExibida,
+            detail: "Habitantes / km²",
+            icon: Layers,
+          },
+        ]
+      : []),
+    ...(temIndicador(escolarizacao)
+      ? [
+          {
+            label: "Alfabetização / Ensino",
+            value: escolarizacaoExibida,
+            detail: "Censo IBGE",
+            icon: GraduationCap,
+          },
+        ]
+      : []),
   ];
 
-  const imagemCapa = ((cidadeDetalhesApi?.imagens && cidadeDetalhesApi.imagens.length > 0 ? cidadeDetalhesApi.imagens : cidade.imagens) && Array.isArray(cidade.imagens) && (cidadeDetalhesApi?.imagens?.length || cidade.imagens?.length))
-    ? (cidade.imagens.find(img => img.is_cover)?.image || cidade.imagens[0]?.image)
-    : null;
+  const cityGalleryImages = cidadeDetalhesApi?.imagens?.length
+    ? cidadeDetalhesApi.imagens
+    : cidade.imagens;
 
   return (
     <div
@@ -417,14 +659,14 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[90vw] xl:max-w-7xl bg-slate-50 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col border border-slate-200/80 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[96vw] xl:max-w-[1440px] bg-slate-50 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col border border-slate-200/80 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Botão de Fechar FIXO */}
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-2">
+        <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-50 flex items-center gap-2">
           <button
             onClick={onClose}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/40 hover:bg-[#C90C0F] text-white rounded-full text-xs font-semibold backdrop-blur-md border border-white/20 shadow-md transition-all duration-150 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/50 hover:bg-[#C90C0F] text-white rounded-full text-xs font-semibold backdrop-blur-md border border-white/20 shadow-md transition-all duration-150 cursor-pointer"
             title="Fechar detalhes"
           >
             <X className="h-3.5 w-3.5" />
@@ -434,68 +676,78 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
 
         {/* CONTAINER COM SCROLL */}
         <div className="w-full h-full overflow-y-auto flex flex-col bg-slate-50 relative">
-
           {/* =========================================================
-              1. HEADER / HERO DA CIDADE SELECIONADA
+              1. HEADER / HERO + GALERIA DA CIDADE SELECIONADA
           ========================================================= */}
-          <div className="relative w-full min-h-[280px] sm:min-h-[340px] bg-slate-900 overflow-hidden flex flex-col justify-end p-6 sm:p-8 shrink-0">
-            {!imageError && imagemCapa ? (
-              <img
-                src={imagemCapa}
-                alt={cidade.name}
-                className="absolute inset-0 w-full h-full object-cover opacity-70"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-r from-[#359830]/40 via-slate-900 to-slate-900 opacity-90" />
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-transparent" />
-
-            {/* Nome e Indicadores de Topo */}
-            <div className="relative z-10 w-full flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+          <ImageGalleryCarousel
+            imagens={cityGalleryImages}
+            title={cidade.name}
+            heightClass="h-[300px] sm:h-[360px] lg:h-[420px]"
+            fallbackIcon={<Building2 className="h-14 w-14 text-white/40 mb-2" />}
+            fallbackSubtitle={estadoNomeApi || cidade.state_name || "Município"}
+          >
+            <div className="absolute bottom-5 left-5 right-5 sm:bottom-8 sm:left-8 sm:right-8 z-20 flex flex-col md:flex-row md:items-end justify-between gap-4 pointer-events-none">
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider mb-2 border border-white/30">
                   <MapPin className="h-3.5 w-3.5 text-[#C90C0F]" />
-                  {estadoNomeApi || cidade.state_name || "Sul de Minas Gerais"}
+                  {estadoNomeApi || cidade.state_name || "Brasil"}
                 </div>
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md">
+                <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md">
                   {cidade.name}
                 </h1>
               </div>
 
+              <div className="flex flex-wrap items-center gap-2.5 pointer-events-auto">
+                <ShareButton path={`/cidades?id=${cidade.id}`} variant="light" />
+                {cidade.slug && (
+                  <Link
+                    href={`/cidades/${encodeURIComponent(cidade.slug)}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1D5C1B] hover:bg-[#164714] text-white text-xs sm:text-sm font-semibold shadow-lg transition-colors"
+                  >
+                    Página da cidade
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
+          </ImageGalleryCarousel>
 
           {/* =========================================================
               CONTEÚDO DO PAINEL DA CIDADE SELECIONADA
           ========================================================= */}
           <div className="p-4 sm:p-6 md:p-8 space-y-8">
-
             {/* SEÇÃO COMPLETA: INDICADORES SOCIOECONÔMICOS E CULTURAIS */}
-            {indicadores.length > 0 && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#5BAF56]/30 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider flex items-center gap-2">
-                  <Award className="h-4 w-4 text-[#359830]" />
-                  Painel de Indicadores Gerais do Município
-                </span>
-                  <span className="text-xs text-[#287524] font-medium">Indicadores consolidados do município</span>
-              </div>
+            {indicadores.length > 0 && (
+              <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#5BAF56]/30 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider flex items-center gap-2">
+                    <Award className="h-4 w-4 text-[#359830]" />
+                    Painel de Indicadores Gerais do Município
+                  </span>
+                  <span className="text-xs text-[#287524] font-medium">
+                    Indicadores consolidados do município
+                  </span>
+                </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                {indicadores.map(({ label, value, detail, icon: Icon }) => (
-                  <div key={label} className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">{label}</span>
-                      <Icon className="h-3.5 w-3.5 text-[#359830]" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                  {indicadores.map(({ label, value, detail, icon: Icon }) => (
+                    <div
+                      key={label}
+                      className="bg-[#EAF4E9]/40 rounded-xl p-3.5 border border-[#5BAF56]/30 flex flex-col justify-between"
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[11px] font-semibold text-[#1D5C1B] uppercase">
+                          {label}
+                        </span>
+                        <Icon className="h-3.5 w-3.5 text-[#359830]" />
+                      </div>
+                      <span className="text-base font-bold text-slate-800">{value}</span>
+                      <span className="text-[10px] text-slate-500 mt-1">{detail}</span>
                     </div>
-                    <span className="text-base font-bold text-slate-800">{value}</span>
-                    <span className="text-[10px] text-slate-500 mt-1">{detail}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>}
+            )}
 
             {/* SEÇÃO 1: SOBRE A CIDADE */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
@@ -503,19 +755,11 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 <Info className="h-4 w-4 text-[#359830]" />
                 Sobre a Cidade
               </span>
-              {(() => {
-                const desc = (cidadeDetalhesApi?.description || cidade.description || "").trim();
-                return desc && desc !== "string" ? (
-                  <div
-                    className="prose prose-slate max-w-4xl text-sm leading-relaxed text-justify sm:text-base"
-                    dangerouslySetInnerHTML={{ __html: desc }}
-                  />
-                ) : (
-                  <p className="max-w-4xl text-justify text-sm leading-relaxed text-slate-600 sm:text-base">
-                    Informações detalhadas sobre o município e seus atrativos turísticos serão atualizadas em breve.
-                  </p>
-                );
-              })()}
+              <RichTextContent
+                html={cidadeDetalhesApi?.description || cidade.description}
+                fallback="Informações detalhadas sobre o município e seus atrativos turísticos serão atualizadas em breve."
+                className="max-w-4xl text-justify"
+              />
             </div>
 
             <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
@@ -525,7 +769,8 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 </h3>
                 {!noticiasError && !noticiasLoading && (
                   <span className="text-xs font-semibold text-slate-500">
-                    {noticiasDaCidade.length} {noticiasDaCidade.length === 1 ? "publicação" : "publicações"}
+                    {noticiasDaCidade.length}{" "}
+                    {noticiasDaCidade.length === 1 ? "publicação" : "publicações"}
                   </span>
                 )}
               </div>
@@ -566,7 +811,8 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                   </span>
                   {pontosTuristicos.length > 0 && (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] border border-[#5BAF56]/30">
-                      {pontosTuristicos.length} {pontosTuristicos.length === 1 ? "atrativo" : "atrativos"}
+                      {pontosTuristicos.length}{" "}
+                      {pontosTuristicos.length === 1 ? "atrativo" : "atrativos"}
                     </span>
                   )}
                 </div>
@@ -584,9 +830,10 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                     </div>
                   ) : (
                     pontosTuristicos.map((ponto, index) => {
-                      const img = (ponto.imagens && Array.isArray(ponto.imagens) && ponto.imagens.length > 0)
-                        ? (ponto.imagens.find(i => i.is_cover)?.image || ponto.imagens[0]?.image)
-                        : null;
+                      const img =
+                        ponto.imagens && Array.isArray(ponto.imagens) && ponto.imagens.length > 0
+                          ? ponto.imagens.find((i) => i.is_cover)?.image || ponto.imagens[0]?.image
+                          : null;
 
                       return (
                         <div
@@ -609,16 +856,26 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                               {ponto.name}
                             </h4>
                             {ponto.description && (
-                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
-                                {ponto.description}
-                              </p>
+                              <RichTextContent
+                                html={ponto.description}
+                                className="text-xs sm:text-xs text-slate-600 mt-1 line-clamp-3"
+                              />
                             )}
-                            {ponto.contatos && Array.isArray(ponto.contatos) && ponto.contatos.length > 0 && (ponto.contatos[0]?.address || ponto.contatos[0]?.label || ponto.contatos[0]?.value) && (
-                              <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
-                                <MapPin className="h-3.5 w-3.5 text-[#C90C0F] shrink-0" />
-                                <span className="truncate">{ponto.contatos[0].address || ponto.contatos[0].label || ponto.contatos[0].value}</span>
-                              </span>
-                            )}
+                            {ponto.contatos &&
+                              Array.isArray(ponto.contatos) &&
+                              ponto.contatos.length > 0 &&
+                              (ponto.contatos[0]?.address ||
+                                ponto.contatos[0]?.label ||
+                                ponto.contatos[0]?.value) && (
+                                <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
+                                  <MapPin className="h-3.5 w-3.5 text-[#C90C0F] shrink-0" />
+                                  <span className="truncate">
+                                    {ponto.contatos[0].address ||
+                                      ponto.contatos[0].label ||
+                                      ponto.contatos[0].value}
+                                  </span>
+                                </span>
+                              )}
                           </div>
                         </div>
                       );
@@ -655,9 +912,14 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                   ) : (
                     eventos.map((evento, index) => {
                       const dataInfo = formatarDataEvento(evento.start_date);
-                      const local = (evento.contatos && Array.isArray(evento.contatos) && evento.contatos.length > 0)
-                        ? (evento.contatos[0].address || evento.contatos[0].label || evento.contatos[0].value)
-                        : cidade.name;
+                      const local =
+                        evento.contatos &&
+                        Array.isArray(evento.contatos) &&
+                        evento.contatos.length > 0
+                          ? evento.contatos[0].address ||
+                            evento.contatos[0].label ||
+                            evento.contatos[0].value
+                          : cidade.name;
 
                       return (
                         <div
@@ -666,17 +928,22 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                         >
                           <div className="flex items-start sm:items-center gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-xl bg-[#359830] text-white flex flex-col items-center justify-center shrink-0 shadow-sm">
-                              <span className="text-sm font-black leading-none">{dataInfo.dia}</span>
-                              <span className="text-[10px] font-bold uppercase leading-none mt-0.5 opacity-90">{dataInfo.mes}</span>
+                              <span className="text-sm font-black leading-none">
+                                {dataInfo.dia}
+                              </span>
+                              <span className="text-[10px] font-bold uppercase leading-none mt-0.5 opacity-90">
+                                {dataInfo.mes}
+                              </span>
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-sm font-bold text-slate-800 leading-tight truncate">
                                 {evento.name}
                               </h4>
                               {evento.description && (
-                                <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">
-                                  {evento.description}
-                                </p>
+                                <RichTextContent
+                                  html={evento.description}
+                                  className="text-xs sm:text-xs text-slate-600 mt-0.5 line-clamp-2"
+                                />
                               )}
                               <span className="text-xs text-slate-500 flex items-center gap-1 mt-1 truncate">
                                 <MapPin className="h-3.5 w-3.5 text-[#C90C0F] shrink-0" />
@@ -698,14 +965,24 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
             </div>
 
             {/* SEÇÃO 3: CONTATOS E ATENDIMENTO */}
-            {((cidadeDetalhesApi?.contatos && Array.isArray(cidadeDetalhesApi.contatos) && cidadeDetalhesApi.contatos.length > 0) || (cidade.contatos && Array.isArray(cidade.contatos) && cidade.contatos.length > 0)) && (
+            {((cidadeDetalhesApi?.contatos &&
+              Array.isArray(cidadeDetalhesApi.contatos) &&
+              cidadeDetalhesApi.contatos.length > 0) ||
+              (cidade.contatos &&
+                Array.isArray(cidade.contatos) &&
+                cidade.contatos.length > 0)) && (
               <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
                 <span className="text-xs font-bold text-[#1D5C1B] uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Phone className="h-4 w-4 text-[#359830]" />
                   Contatos e Atendimento Turístico
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {((cidadeDetalhesApi?.contatos && Array.isArray(cidadeDetalhesApi.contatos) && cidadeDetalhesApi.contatos.length > 0) ? cidadeDetalhesApi.contatos : (cidade.contatos || [])).map((contato) => (
+                  {(cidadeDetalhesApi?.contatos &&
+                  Array.isArray(cidadeDetalhesApi.contatos) &&
+                  cidadeDetalhesApi.contatos.length > 0
+                    ? cidadeDetalhesApi.contatos
+                    : cidade.contatos || []
+                  ).map((contato) => (
                     <div
                       key={contato.id}
                       className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 flex flex-col justify-between gap-2"
@@ -718,7 +995,8 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                           <p className="text-sm font-semibold text-[#1D5C1B] mt-1 flex items-center gap-2">
                             {contato.type?.toLowerCase().includes("email") ? (
                               <Mail className="h-4 w-4 text-[#C90C0F]" />
-                            ) : contato.type?.toLowerCase().includes("site") || contato.type?.toLowerCase().includes("website") ? (
+                            ) : contato.type?.toLowerCase().includes("site") ||
+                              contato.type?.toLowerCase().includes("website") ? (
                               <Globe className="h-4 w-4 text-[#359830]" />
                             ) : (
                               <Phone className="h-4 w-4 text-[#359830]" />
@@ -747,8 +1025,12 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                     <BarChart3 className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">Dados Econômicos e Setoriais</h2>
-                    <p className="text-xs text-slate-500">Indicadores de mercado, empregabilidade e empresas</p>
+                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+                      Dados Econômicos e Setoriais
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Indicadores de mercado, empregabilidade e empresas
+                    </p>
                   </div>
                 </div>
 
@@ -756,17 +1038,23 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 {loadingRealData ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-sm self-start sm:self-auto">
                     <RefreshCw className="w-3.5 h-3.5 text-[#359830] animate-spin" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">Carregando dados...</span>
+                    <span className="text-[11px] font-bold tracking-wide uppercase">
+                      Carregando dados...
+                    </span>
                   </div>
                 ) : dataIsPartial ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-[#C90C0F] border border-[#C90C0F]/20 shadow-sm self-start sm:self-auto">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#C90C0F] animate-pulse" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">Dados Parciais</span>
+                    <span className="text-[11px] font-bold tracking-wide uppercase">
+                      Dados Parciais
+                    </span>
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EAF4E9] text-[#1D5C1B] border border-[#5BAF56]/30 shadow-sm self-start sm:self-auto">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#359830]" />
-                    <span className="text-[11px] font-bold tracking-wide uppercase">Dados Completos</span>
+                    <span className="text-[11px] font-bold tracking-wide uppercase">
+                      Dados Completos
+                    </span>
                   </div>
                 )}
               </div>
@@ -797,8 +1085,11 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                     <div className="p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-3 text-left">
                       <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-xs text-amber-900 leading-relaxed">
-                        <span className="font-semibold block text-amber-950 mb-0.5">Primeiro carregamento:</span>
-                        Na primeira vez, a consulta pode demorar alguns segundos enquanto os dados econômicos e estatísticos são sincronizados com o servidor.
+                        <span className="font-semibold block text-amber-950 mb-0.5">
+                          Primeiro carregamento:
+                        </span>
+                        Na primeira vez, a consulta pode demorar alguns segundos enquanto os dados
+                        econômicos e estatísticos são sincronizados com o servidor.
                       </div>
                     </div>
                   </div>
@@ -809,22 +1100,51 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 {/* Radar */}
                 <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative">
                   <div className="mb-4">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Vocação Turística</h3>
-                    <p className="text-xs text-slate-500">Distribuição de estabelecimentos por categoria</p>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                      Vocação Turística
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Distribuição de estabelecimentos por categoria
+                    </p>
                   </div>
                   <div className="h-64 w-full pt-2 relative flex items-center justify-center">
                     {loadingRealData ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10"><RefreshCw className="animate-spin text-[#359830] h-6 w-6" /></div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                        <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
+                      </div>
                     ) : combinedData.length === 0 ? (
-                      <div className="text-slate-400 text-sm">Sem dados de empresas disponíveis</div>
+                      <div className="text-slate-400 text-sm">
+                        Sem dados de empresas disponíveis
+                      </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={combinedData}>
                           <PolarGrid stroke="#EAF4E9" />
-                          <PolarAngleAxis dataKey="Classificação" tick={{ fill: '#1D5C1B', fontSize: 10, fontWeight: 500 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
-                          <Radar name="Estabelecimentos" dataKey="Estabelecimentos" stroke="#359830" fill="#359830" fillOpacity={0.4} />
-                          <Tooltip formatter={(val: number | string) => [`${val}`, "Quantidade"]} contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                          <PolarAngleAxis
+                            dataKey="Classificação"
+                            tick={{ fill: "#1D5C1B", fontSize: 10, fontWeight: 500 }}
+                          />
+                          <PolarRadiusAxis
+                            angle={30}
+                            domain={[0, "auto"]}
+                            tick={false}
+                            axisLine={false}
+                          />
+                          <Radar
+                            name="Estabelecimentos"
+                            dataKey="Estabelecimentos"
+                            stroke="#359830"
+                            fill="#359830"
+                            fillOpacity={0.4}
+                          />
+                          <Tooltip
+                            formatter={(val: number | string) => [`${val}`, "Quantidade"]}
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid #e2e8f0",
+                              fontSize: "12px",
+                            }}
+                          />
                         </RadarChart>
                       </ResponsiveContainer>
                     )}
@@ -835,29 +1155,83 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                 <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col relative xl:col-span-2">
                   <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
                     <div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Empresas vs. Empregos</h3>
-                      <p className="text-xs text-slate-500">Proporção entre CNPJs e força de trabalho</p>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                        Empresas vs. Empregos
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Proporção entre CNPJs e força de trabalho
+                      </p>
                     </div>
                     <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded bg-[#359830]" /> Empresas</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#C90C0F]" /> Vínculos</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded bg-[#359830]" /> Empresas
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#C90C0F]" /> Vínculos
+                      </div>
                     </div>
                   </div>
                   <div className="h-64 w-full pt-2 relative">
                     {loadingRealData ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10"><RefreshCw className="animate-spin text-[#359830] h-6 w-6" /></div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                        <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
+                      </div>
                     ) : combinedData.length === 0 ? (
-                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">Sem dados disponíveis</div>
+                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">
+                        Sem dados disponíveis
+                      </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={combinedData} margin={{ top: 10, right: -15, left: -20, bottom: 0 }}>
+                        <ComposedChart
+                          data={combinedData}
+                          margin={{ top: 10, right: -15, left: -20, bottom: 0 }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
-                          <XAxis dataKey="Classificação" tick={{ fontSize: 10, fill: '#1D5C1B' }} axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#359830' }} axisLine={false} tickLine={false} orientation="left" />
-                          <YAxis yAxisId="right" tick={{ fontSize: 10, fill: '#C90C0F' }} axisLine={false} tickLine={false} orientation="right" />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-                          <Bar yAxisId="left" dataKey="Estabelecimentos" fill="#359830" radius={[4, 4, 0, 0]} barSize={20} name="Estabelecimentos" />
-                          <Line yAxisId="right" type="monotone" dataKey="Funcionarios" stroke="#C90C0F" strokeWidth={3} dot={{ r: 4, fill: "#C90C0F", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} name="Funcionários" />
+                          <XAxis
+                            dataKey="Classificação"
+                            tick={{ fontSize: 10, fill: "#1D5C1B" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            yAxisId="left"
+                            tick={{ fontSize: 10, fill: "#359830" }}
+                            axisLine={false}
+                            tickLine={false}
+                            orientation="left"
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            tick={{ fontSize: 10, fill: "#C90C0F" }}
+                            axisLine={false}
+                            tickLine={false}
+                            orientation="right"
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid #e2e8f0",
+                              fontSize: "12px",
+                            }}
+                          />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="Estabelecimentos"
+                            fill="#359830"
+                            radius={[4, 4, 0, 0]}
+                            barSize={20}
+                            name="Estabelecimentos"
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="Funcionarios"
+                            stroke="#C90C0F"
+                            strokeWidth={3}
+                            dot={{ r: 4, fill: "#C90C0F", strokeWidth: 2, stroke: "#fff" }}
+                            activeDot={{ r: 6 }}
+                            name="Funcionários"
+                          />
                         </ComposedChart>
                       </ResponsiveContainer>
                     )}
@@ -882,8 +1256,10 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                         onChange={(e) => setSelectedYear(e.target.value)}
                         className="bg-slate-50 border border-[#5BAF56]/40 text-[#1D5C1B] text-sm font-semibold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#359830]/20 cursor-pointer"
                       >
-                        {availableYears.map(year => (
-                          <option key={year} value={year}>{year}</option>
+                        {availableYears.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
                         ))}
                       </select>
                     )}
@@ -895,19 +1271,24 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                         <RefreshCw className="animate-spin text-[#359830] h-6 w-6" />
                       </div>
                     ) : realPostos.length === 0 ? (
-                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">Sem dados de postos para este ano</div>
+                      <div className="text-slate-400 text-sm h-full flex items-center justify-center">
+                        Sem dados de postos para este ano
+                      </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={realPostos} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <BarChart
+                          data={realPostos}
+                          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAF4E9" />
                           <XAxis
                             dataKey="Mês"
-                            tick={{ fontSize: 11, fill: '#1D5C1B' }}
+                            tick={{ fontSize: 11, fill: "#1D5C1B" }}
                             axisLine={false}
                             tickLine={false}
                           />
                           <YAxis
-                            tick={{ fontSize: 11, fill: '#1D5C1B' }}
+                            tick={{ fontSize: 11, fill: "#1D5C1B" }}
                             axisLine={false}
                             tickLine={false}
                           />
@@ -916,21 +1297,29 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                             formatter={(val: number | string) => {
                               const num = Number(val) || 0;
                               const sinal = num > 0 ? "+" : "";
-                              const status = num >= 0 ? "Admissões Líquidas (Crescimento)" : "Desligamentos Líquidos (Retração)";
+                              const status =
+                                num >= 0
+                                  ? "Admissões Líquidas (Crescimento)"
+                                  : "Desligamentos Líquidos (Retração)";
                               return [`${sinal}${num} vagas (${status})`, "Saldo Mensal"];
                             }}
                             labelFormatter={(label) => `Mês: ${label}`}
-                            contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
-                            cursor={{ fill: '#f1f5f9' }}
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid #e2e8f0",
+                              fontSize: "12px",
+                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                            }}
+                            cursor={{ fill: "#f1f5f9" }}
                           />
-                          <Bar
-                            dataKey="Saldo"
-                            radius={[4, 4, 4, 4]}
-                          >
+                          <Bar dataKey="Saldo" radius={[4, 4, 4, 4]}>
                             {
                               // Cores semanticas de alto contraste acessivel (Verde Esmeralda e Vermelho Carmim)
                               realPostos.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={Number(entry.Saldo) >= 0 ? '#2E7D32' : '#D32F2F'} />
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={Number(entry.Saldo) >= 0 ? "#2E7D32" : "#D32F2F"}
+                                />
                               ))
                             }
                           </Bar>
@@ -939,13 +1328,11 @@ export function CidadeDetalhesModal({ cidade, allNoticias = [], noticiasLoading 
                     )}
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -1,19 +1,20 @@
-import { Map } from "lucide-react";
 import { Header } from "@/components/Header";
+import { MapaClient } from "@/components/MapaClient";
+import { fetchServerMapaOverview } from "@/lib/website-api";
 
-export default function MapaPage() {
+export const dynamic = "force-dynamic";
+
+export default async function MapaPage() {
+  const mapaData = await fetchServerMapaOverview();
+
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
-      <Header />
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-        <div className="bg-primary/10 p-6 rounded-full mb-6">
-          <Map className="h-16 w-16 text-primary" />
-        </div>
-        <h1 className="text-4xl font-bold text-slate-800 mb-4">Mapa Interativo</h1>
-        <p className="text-lg text-slate-600 max-w-lg">
-          Esta funcionalidade está em desenvolvimento. Em breve você poderá explorar a região geograficamente e visualizar a distribuição de indicadores por cidade.
-        </p>
-      </div>
+      <Header
+        badge="Exploração Geográfica"
+        title="Mapa Interativo"
+        subtitle="Explore os municípios na visão regional e aproxime o mapa para visualizar pontos turísticos, restaurantes e eventos."
+      />
+      <MapaClient initialData={mapaData} />
     </main>
   );
 }

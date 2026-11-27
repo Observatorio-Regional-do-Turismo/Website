@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { NoticiaCard } from "@/components/NoticiaCard";
 
+const MAX_CAROUSEL_ITEMS = 10;
+
 interface NoticiaCarouselProps {
   noticias: ApiNoticia[];
   onSelect: (noticia: ApiNoticia) => void;
@@ -11,18 +13,19 @@ interface NoticiaCarouselProps {
 }
 
 export function NoticiaCarousel({ noticias, onSelect, label }: NoticiaCarouselProps) {
+  const limitedNoticias = useMemo(() => noticias.slice(0, MAX_CAROUSEL_ITEMS), [noticias]);
   const [activePage, setActivePage] = useState(0);
-  const pageCount = Math.ceil(noticias.length / 3);
+  const pageCount = Math.max(1, Math.ceil(limitedNoticias.length / 3));
   const currentNoticias = useMemo(
-    () => noticias.slice(activePage * 3, activePage * 3 + 3),
-    [noticias, activePage]
+    () => limitedNoticias.slice(activePage * 3, activePage * 3 + 3),
+    [limitedNoticias, activePage],
   );
 
   useEffect(() => {
     setActivePage(0);
-  }, [noticias]);
+  }, [limitedNoticias]);
 
-  if (noticias.length === 0) return null;
+  if (limitedNoticias.length === 0) return null;
 
   const showPrevious = () => {
     setActivePage((page) => (page - 1 + pageCount) % pageCount);
@@ -42,30 +45,27 @@ export function NoticiaCarousel({ noticias, onSelect, label }: NoticiaCarouselPr
         type="button"
         onClick={showPrevious}
         aria-label="Notícia anterior"
-        className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:border-[#359830] hover:text-[#1D5C1B] focus:outline-none focus:ring-2 focus:ring-[#359830]/40 sm:p-2.5"
+        className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:border-[#359830] hover:text-[#1D5C1B] focus:outline-none focus:ring-2 focus:ring-[#359830]/40 sm:p-2.5 cursor-pointer"
       >
         <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
       </button>
       <div className="min-w-0 flex-1" aria-live="polite">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {currentNoticias.map((noticia) => (
-            <NoticiaCard
-              key={noticia.id}
-              noticia={noticia}
-              variant="small"
-              onClick={onSelect}
-            />
+            <NoticiaCard key={noticia.id} noticia={noticia} onClick={onSelect} />
           ))}
         </div>
         <p className="mt-3 text-center text-xs font-semibold text-slate-500">
-          {activePage * 3 + 1}–{Math.min(activePage * 3 + currentNoticias.length, noticias.length)} de {noticias.length}
+          {activePage * 3 + 1}–
+          {Math.min(activePage * 3 + currentNoticias.length, limitedNoticias.length)} de{" "}
+          {limitedNoticias.length}
         </p>
       </div>
       <button
         type="button"
         onClick={showNext}
         aria-label="Próxima notícia"
-        className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:border-[#359830] hover:text-[#1D5C1B] focus:outline-none focus:ring-2 focus:ring-[#359830]/40 sm:p-2.5"
+        className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:border-[#359830] hover:text-[#1D5C1B] focus:outline-none focus:ring-2 focus:ring-[#359830]/40 sm:p-2.5 cursor-pointer"
       >
         <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
       </button>

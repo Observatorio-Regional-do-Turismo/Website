@@ -1,26 +1,87 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWebsiteApiBaseUrl } from "@/lib/website-api";
+import { getServerWebsiteApiBaseUrl } from "@/lib/website-api";
+
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".png", ".jpg", ".jpeg", ".webp"]);
+
+function extractErrorMessage(data: unknown): string {
+  if (typeof data === "object" && data !== null) {
+    const record = data as Record<string, unknown>;
+    if (typeof record.detail === "string") return record.detail;
+    const firstValue = Object.values(record)[0];
+    if (Array.isArray(firstValue) && typeof firstValue[0] === "string") return firstValue[0];
+    if (typeof firstValue === "string") return firstValue;
+  }
+  return "Não foi possível registrar sua solicitação no momento. Verifique os dados e tente novamente.";
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+    const isMultipart = contentType.includes("multipart/form-data");
 
-    const {
-      nome,
-      email,
-      telefone,
-      cargo,
-      orgao,
-      tipoVinculo,
-      cidadeNome,
-      igrNome,
-      modulos,
-      emailCadastro,
-      senha,
-      justificativa,
-    } = body;
+    let nome = "";
+    let email = "";
+    let telefone = "";
+    let cargo = "";
+    let orgao = "";
+    let tipoVinculo = "cidade";
+    let cidadeNome = "";
+    let igrNome = "";
+    let modulos: string[] = [];
+    let usernameSugerido = "";
+    let emailCadastro = "";
+    let justificativa = "";
+    let documentoFile: File | null = null;
 
-    // Validação básica dos campos obrigatórios
+    if (isMultipart) {
+      const incoming = await request.formData();
+      nome = String(incoming.get("nome") ?? "").trim();
+      email = String(incoming.get("email") ?? "").trim();
+      telefone = String(incoming.get("telefone") ?? "").trim();
+      cargo = String(incoming.get("cargo") ?? "").trim();
+      orgao = String(incoming.get("orgao") ?? "").trim();
+      tipoVinculo = String(incoming.get("tipoVinculo") ?? "cidade").trim();
+      cidadeNome = String(incoming.get("cidadeNome") ?? "").trim();
+      igrNome = String(incoming.get("igrNome") ?? "").trim();
+      usernameSugerido = String(incoming.get("usernameSugerido") ?? "").trim();
+      emailCadastro = String(incoming.get("emailCadastro") ?? "").trim();
+      justificativa = String(incoming.get("justificativa") ?? "").trim();
+
+      const rawModulos = incoming.get("modulos");
+      if (typeof rawModulos === "string" && rawModulos.trim()) {
+        try {
+          const parsed = JSON.parse(rawModulos);
+          modulos = Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          modulos = rawModulos
+            .split(",")
+            .map((m) => m.trim())
+            .filter(Boolean);
+        }
+      }
+
+      const rawDoc =
+        incoming.get("documentoComprobatorio") ?? incoming.get("documento_comprobatorio");
+      if (rawDoc instanceof File && rawDoc.size > 0) {
+        documentoFile = rawDoc;
+      }
+    } else {
+      const body = await request.json();
+      nome = String(body.nome ?? "").trim();
+      email = String(body.email ?? "").trim();
+      telefone = String(body.telefone ?? "").trim();
+      cargo = String(body.cargo ?? "").trim();
+      orgao = String(body.orgao ?? "").trim();
+      tipoVinculo = String(body.tipoVinculo ?? "cidade").trim();
+      cidadeNome = String(body.cidadeNome ?? "").trim();
+      igrNome = String(body.igrNome ?? "").trim();
+      usernameSugerido = String(body.usernameSugerido ?? "").trim();
+      emailCadastro = String(body.emailCadastro ?? "").trim();
+      justificativa = String(body.justificativa ?? "").trim();
+      modulos = Array.isArray(body.modulos) ? body.modulos.map(String) : [];
+    }
+
     if (!nome || !email || !telefone || !cargo || !tipoVinculo) {
       return NextResponse.json(
         {
@@ -32,75 +93,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validação de senha se preenchida
-    if (senha && senha.length < 6) {
+    if (!documentoFile) {
       return NextResponse.json(
         {
           success: false,
-          message: "A senha desejada para cadastro deve conter no mínimo 6 caracteres.",
+          message:
+            "Anexe um documento comprobatório (PDF ou imagem) que ateste sua representação institucional.",
         },
         { status: 400 },
       );
     }
 
-    const finalModulos = Array.isArray(modulos) ? modulos : [];
+    if (documentoFile.size > MAX_DOCUMENT_BYTES) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "O documento comprobatório deve ter no máximo 10 MB.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const dotIdx = documentoFile.name.lastIndexOf(".");
+    const ext = dotIdx >= 0 ? documentoFile.name.slice(dotIdx).toLowerCase() : "";
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Formato de documento não permitido. Envie PDF, PNG, JPG ou WEBP.",
+        },
+        { status: 400 },
+      );
+    }
+
     const protocolo = `SOL-${new Date().getFullYear()}-${Math.random()
       .toString(36)
       .substring(2, 7)
       .toUpperCase()}`;
     const dataRecebimento = new Date().toISOString();
 
-    // Tentar encaminhar para o backend Django upstream se disponível
-    let upstreamSuccess = false;
+    const upstreamForm = new FormData();
+    upstreamForm.append("nome", nome);
+    upstreamForm.append("email", email);
+    upstreamForm.append("telefone", telefone);
+    upstreamForm.append("cargo", cargo);
+    upstreamForm.append("orgao", orgao);
+    upstreamForm.append("tipo_vinculo", tipoVinculo);
+    upstreamForm.append("cidade_nome", cidadeNome);
+    upstreamForm.append("igr_nome", igrNome);
+    upstreamForm.append("modulos", JSON.stringify(modulos));
+    upstreamForm.append("username_sugerido", usernameSugerido);
+    upstreamForm.append("email_cadastro", emailCadastro || email);
+    upstreamForm.append("justificativa", justificativa);
+    upstreamForm.append("protocolo", protocolo);
+    upstreamForm.append("documento_comprobatorio", documentoFile, documentoFile.name);
+
     let upstreamData: unknown = null;
-
-    const upstreamPayload = {
-      nome: String(nome).trim(),
-      email: String(email).trim(),
-      telefone: String(telefone).trim(),
-      cargo: String(cargo).trim(),
-      orgao: orgao ? String(orgao).trim() : "",
-      tipoVinculo: String(tipoVinculo).trim(),
-      cidadeNome: cidadeNome ? String(cidadeNome).trim() : "",
-      igrNome: igrNome ? String(igrNome).trim() : "",
-      modulos: finalModulos.map((m) => String(m)),
-      emailCadastro: emailCadastro ? String(emailCadastro).trim() : String(email).trim(),
-      justificativa: justificativa ? String(justificativa).trim() : "",
-      protocolo,
-      data_solicitacao: dataRecebimento,
-      status: "pendente",
-    };
-
     try {
-      const baseUrl = getWebsiteApiBaseUrl();
-      const upstreamUrl = `${baseUrl}/solicitacoes-gestor/`;
-
-      const upstreamRes = await fetch(upstreamUrl, {
+      const baseUrl = getServerWebsiteApiBaseUrl();
+      const upstreamRes = await fetch(`${baseUrl}/solicitacoes-gestor/`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify(upstreamPayload),
+        body: upstreamForm,
         cache: "no-store",
       });
 
       upstreamData = await upstreamRes.json().catch(() => null);
-      if (upstreamRes.ok) {
-        upstreamSuccess = true;
-      } else {
-        const upstreamErr =
-          typeof upstreamData === "object" &&
-          upstreamData !== null &&
-          "detail" in upstreamData &&
-          typeof (upstreamData as { detail?: unknown }).detail === "string"
-            ? (upstreamData as { detail: string }).detail
-            : "Não foi possível enviar o e-mail de solicitação no momento. Verifique os dados e tente novamente.";
-
+      if (!upstreamRes.ok) {
         return NextResponse.json(
           {
             success: false,
-            message: upstreamErr,
+            message: extractErrorMessage(upstreamData),
           },
           { status: upstreamRes.status >= 400 ? upstreamRes.status : 502 },
         );
@@ -110,7 +175,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message:
-            "Não foi possível conectar ao servidor para enviar o e-mail da solicitação. Tente novamente em instantes.",
+            "Não foi possível conectar ao servidor para enviar sua solicitação. Tente novamente em instantes.",
         },
         { status: 502 },
       );
@@ -124,36 +189,29 @@ export async function POST(request: NextRequest) {
         ? (upstreamData as { protocolo: string }).protocolo
         : protocolo;
 
-    console.info(`[INSCRIÇÃO DE GESTOR REGISTRADA - Protocolo: ${finalProtocolo}]`, {
-      tipoVinculo: upstreamPayload.tipoVinculo,
-      senhaDefinida: Boolean(senha),
-      dataRecebimento,
-      upstreamSuccess,
-    });
-
     return NextResponse.json(
       {
         success: true,
         protocolo: finalProtocolo,
         dataRecebimento,
         message:
-          "Sua solicitação foi enviada por e-mail para a equipe do Observatório (observatoriodoturismomg@gmail.com) e registrada com sucesso para análise.",
+          "Sua solicitação e o documento comprobatório foram registrados e encaminhados à coordenação do Observatório para análise.",
         detalhes: {
           nome,
           email,
           emailCadastro: emailCadastro || email,
+          usernameSugerido: usernameSugerido || null,
           tipoVinculo,
           cidadeNome: cidadeNome || null,
           igrNome: igrNome || null,
-          modulos: finalModulos,
-          upstreamIntegrado: upstreamSuccess,
+          modulos,
+          documentoNome: documentoFile.name,
           ...(typeof upstreamData === "object" && upstreamData !== null ? upstreamData : {}),
         },
       },
       { status: 201 },
     );
-  } catch (error) {
-    console.error("Erro ao processar formulário de inscrição:", error);
+  } catch {
     return NextResponse.json(
       {
         success: false,

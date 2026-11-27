@@ -12,7 +12,9 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { ManagerImageManager } from "@/components/ManagerImageManager";
 import { ManagerRichTextEditor } from "@/components/ManagerRichTextEditor";
+import { PaginationControls } from "@/components/PaginationControls";
 import {
   AdminCidadeRecord,
   AdminEstadoRecord,
@@ -69,6 +71,7 @@ export function AdminEntitiesSection({
   const [igrDescription, setIgrDescription] = useState("");
   const [savingIgr, setSavingIgr] = useState(false);
   const [igrSearch, setIgrSearch] = useState("");
+  const [igrPage, setIgrPage] = useState(1);
 
   // Estado do formulário de Cidade
   const [editingCidade, setEditingCidade] = useState<AdminCidadeRecord | null>(null);
@@ -82,6 +85,7 @@ export function AdminEntitiesSection({
   const [cityIgrIds, setCityIgrIds] = useState<number[]>([]);
   const [savingCidade, setSavingCidade] = useState(false);
   const [citySearch, setCitySearch] = useState("");
+  const [cityPage, setCityPage] = useState(1);
 
   const loadData = useCallback(async () => {
     try {
@@ -145,10 +149,12 @@ export function AdminEntitiesSection({
       );
       await loadData();
       await onCatalogChanged();
+      setEditingIgr(saved);
       onNotice(
-        editingIgr ? `IGR "${saved.name}" atualizada.` : `IGR "${saved.name}" criada com sucesso.`,
+        editingIgr
+          ? `IGR "${saved.name}" atualizada.`
+          : `IGR "${saved.name}" criada com sucesso. Você já pode anexar fotos abaixo.`,
       );
-      resetIgrForm();
     } catch (err) {
       onError(extractApiError(err));
     } finally {
@@ -196,12 +202,12 @@ export function AdminEntitiesSection({
       );
       await loadData();
       await onCatalogChanged();
+      setEditingCidade(saved);
       onNotice(
         editingCidade
           ? `Cidade "${saved.name}" atualizada.`
-          : `Cidade "${saved.name}" criada com sucesso.`,
+          : `Cidade "${saved.name}" criada com sucesso. Você já pode anexar fotos abaixo.`,
       );
-      resetCidadeForm();
     } catch (err) {
       onError(extractApiError(err));
     } finally {
@@ -287,144 +293,160 @@ export function AdminEntitiesSection({
 
       {subTab === "cidades" ? (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,1.2fr)]">
-          <form
-            onSubmit={handleSaveCidade}
-            className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <h2 className="flex items-center gap-2 font-bold text-slate-900">
-                <CirclePlus className="h-5 w-5 text-[#1D5C1B]" />
-                {editingCidade ? `Editar cidade: ${editingCidade.name}` : "Cadastrar nova cidade"}
-              </h2>
-              {editingCidade && (
-                <button
-                  type="button"
-                  onClick={resetCidadeForm}
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                >
-                  Nova cidade
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              <label className="block text-xs font-semibold text-slate-700">
-                Nome da cidade
-                <input
-                  required
-                  maxLength={255}
-                  value={cityName}
-                  onChange={(e) => setCityName(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Slug (opcional)
-                <input
-                  maxLength={255}
-                  placeholder="Gerado automaticamente"
-                  value={citySlug}
-                  onChange={(e) => setCitySlug(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Estado
-                <select
-                  required
-                  value={cityStateId}
-                  onChange={(e) => setCityStateId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                >
-                  <option value="">Selecione...</option>
-                  {estados.map((est) => (
-                    <option key={est.id} value={String(est.id)}>
-                      {est.name} ({est.abbreviation})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Código IBGE (7 dígitos, opcional)
-                <input
-                  maxLength={7}
-                  pattern="\d{7}"
-                  placeholder="Ex.: 3151800"
-                  value={cityIbge}
-                  onChange={(e) => setCityIbge(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Latitude (opcional)
-                <input
-                  placeholder="-21.787800"
-                  value={cityLat}
-                  onChange={(e) => setCityLat(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Longitude (opcional)
-                <input
-                  placeholder="-46.561300"
-                  value={cityLon}
-                  onChange={(e) => setCityLon(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-                />
-              </label>
-            </div>
-
-            <div>
-              <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                IGRs vinculadas (uma cidade pode participar de múltiplas IGRs)
-              </span>
-              {igrs.length === 0 ? (
-                <p className="text-xs text-slate-500">Nenhuma IGR cadastrada ainda.</p>
-              ) : (
-                <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2.5 grid gap-1.5 sm:grid-cols-2">
-                  {igrs.map((igr) => (
-                    <label
-                      key={igr.id}
-                      className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={cityIgrIds.includes(igr.id)}
-                        onChange={() => toggleCityIgr(igr.id)}
-                        className="h-4 w-4 accent-[#1D5C1B]"
-                      />
-                      <span className="truncate">{igr.name}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Descrição institucional (opcional)
-              </label>
-              <ManagerRichTextEditor
-                label="Descrição da cidade"
-                value={cityDescription}
-                onChange={setCityDescription}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={savingCidade}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+          <div className="space-y-4">
+            <form
+              onSubmit={handleSaveCidade}
+              className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
-              {savingCidade ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {editingCidade ? "Salvar alterações da cidade" : "Criar nova cidade"}
-            </button>
-          </form>
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <h2 className="flex items-center gap-2 font-bold text-slate-900">
+                  <CirclePlus className="h-5 w-5 text-[#1D5C1B]" />
+                  {editingCidade ? `Editar cidade: ${editingCidade.name}` : "Cadastrar nova cidade"}
+                </h2>
+                {editingCidade && (
+                  <button
+                    type="button"
+                    onClick={resetCidadeForm}
+                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    Nova cidade
+                  </button>
+                )}
+              </div>
+
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Nome da cidade
+                  <input
+                    required
+                    maxLength={255}
+                    value={cityName}
+                    onChange={(e) => setCityName(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Slug (opcional)
+                  <input
+                    maxLength={255}
+                    placeholder="Gerado automaticamente"
+                    value={citySlug}
+                    onChange={(e) => setCitySlug(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Estado
+                  <select
+                    required
+                    value={cityStateId}
+                    onChange={(e) => setCityStateId(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                  >
+                    <option value="">Selecione...</option>
+                    {estados.map((est) => (
+                      <option key={est.id} value={String(est.id)}>
+                        {est.name} ({est.abbreviation})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Código IBGE (7 dígitos, opcional)
+                  <input
+                    maxLength={7}
+                    pattern="\d{7}"
+                    placeholder="Ex.: 3151800"
+                    value={cityIbge}
+                    onChange={(e) => setCityIbge(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Latitude (opcional)
+                  <input
+                    placeholder="-21.787800"
+                    value={cityLat}
+                    onChange={(e) => setCityLat(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Longitude (opcional)
+                  <input
+                    placeholder="-46.561300"
+                    value={cityLon}
+                    onChange={(e) => setCityLon(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                  />
+                </label>
+              </div>
+
+              <div>
+                <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  IGRs vinculadas (uma cidade pode participar de múltiplas IGRs)
+                </span>
+                {igrs.length === 0 ? (
+                  <p className="text-xs text-slate-500">Nenhuma IGR cadastrada ainda.</p>
+                ) : (
+                  <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2.5 grid gap-1.5 sm:grid-cols-2">
+                    {igrs.map((igr) => (
+                      <label
+                        key={igr.id}
+                        className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={cityIgrIds.includes(igr.id)}
+                          onChange={() => toggleCityIgr(igr.id)}
+                          className="h-4 w-4 accent-[#1D5C1B]"
+                        />
+                        <span className="truncate">{igr.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Descrição institucional (opcional)
+                </label>
+                <ManagerRichTextEditor
+                  label="Descrição da cidade"
+                  value={cityDescription}
+                  onChange={setCityDescription}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingCidade}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+              >
+                {savingCidade ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {editingCidade ? "Salvar alterações da cidade" : "Criar nova cidade"}
+              </button>
+            </form>
+
+            {editingCidade && (
+              <ManagerImageManager
+                targetType="cidade"
+                targetId={editingCidade.id}
+                images={editingCidade.imagens || []}
+                title={`Imagens da cidade: ${editingCidade.name}`}
+                onChanged={(imgs) => {
+                  const updated = { ...editingCidade, imagens: imgs };
+                  setEditingCidade(updated);
+                  setCidades((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                }}
+              />
+            )}
+          </div>
 
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
@@ -437,14 +459,17 @@ export function AdminEntitiesSection({
                   type="text"
                   placeholder="Buscar por nome, código IBGE ou IGR..."
                   value={citySearch}
-                  onChange={(e) => setCitySearch(e.target.value)}
+                  onChange={(e) => {
+                    setCitySearch(e.target.value);
+                    setCityPage(1);
+                  }}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:bg-white focus:border-[#359830]"
                 />
               </div>
             </div>
 
-            <div className="max-h-[42rem] space-y-2.5 overflow-y-auto pr-1">
-              {filteredCidades.map((item) => (
+            <div className="space-y-2.5">
+              {filteredCidades.slice((cityPage - 1) * 20, cityPage * 20).map((item) => (
                 <article
                   key={item.id}
                   className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -453,6 +478,9 @@ export function AdminEntitiesSection({
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-bold text-slate-900">{item.name}</h4>
                       <span className="text-xs text-slate-500">{item.state_name}</span>
+                      <span className="text-[11px] font-medium text-slate-400">
+                        • {item.imagens?.length ?? 0} fotos
+                      </span>
                       {item.ibge_code && (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-700">
                           IBGE: {item.ibge_code}
@@ -490,7 +518,7 @@ export function AdminEntitiesSection({
                       className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      Editar
+                      Editar / Fotos
                     </button>
                     <button
                       type="button"
@@ -504,76 +532,101 @@ export function AdminEntitiesSection({
                 </article>
               ))}
             </div>
+
+            <PaginationControls
+              currentPage={cityPage}
+              totalPages={Math.max(1, Math.ceil(filteredCidades.length / 20))}
+              totalItems={filteredCidades.length}
+              pageSize={20}
+              itemLabel="cidades"
+              onPageChange={setCityPage}
+            />
           </div>
         </div>
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,1.2fr)]">
-          <form
-            onSubmit={handleSaveIgr}
-            className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <h2 className="flex items-center gap-2 font-bold text-slate-900">
-                <CirclePlus className="h-5 w-5 text-[#1D5C1B]" />
-                {editingIgr ? `Editar IGR: ${editingIgr.name}` : "Cadastrar nova IGR"}
-              </h2>
-              {editingIgr && (
-                <button
-                  type="button"
-                  onClick={resetIgrForm}
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                >
-                  Nova IGR
-                </button>
-              )}
-            </div>
-
-            <label className="block text-xs font-semibold text-slate-700">
-              Nome da IGR
-              <input
-                required
-                maxLength={255}
-                value={igrName}
-                onChange={(e) => setIgrName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
-              />
-            </label>
-
-            <label className="block text-xs font-semibold text-slate-700">
-              Slug (opcional)
-              <input
-                maxLength={255}
-                placeholder="Gerado automaticamente"
-                value={igrSlug}
-                onChange={(e) => setIgrSlug(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
-              />
-            </label>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Descrição institucional (opcional)
-              </label>
-              <ManagerRichTextEditor
-                label="Descrição da IGR"
-                value={igrDescription}
-                onChange={setIgrDescription}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={savingIgr}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+          <div className="space-y-4">
+            <form
+              onSubmit={handleSaveIgr}
+              className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             >
-              {savingIgr ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {editingIgr ? "Salvar alterações da IGR" : "Criar nova IGR"}
-            </button>
-          </form>
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <h2 className="flex items-center gap-2 font-bold text-slate-900">
+                  <CirclePlus className="h-5 w-5 text-[#1D5C1B]" />
+                  {editingIgr ? `Editar IGR: ${editingIgr.name}` : "Cadastrar nova IGR"}
+                </h2>
+                {editingIgr && (
+                  <button
+                    type="button"
+                    onClick={resetIgrForm}
+                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    Nova IGR
+                  </button>
+                )}
+              </div>
+
+              <label className="block text-xs font-semibold text-slate-700">
+                Nome da IGR
+                <input
+                  required
+                  maxLength={255}
+                  value={igrName}
+                  onChange={(e) => setIgrName(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#359830]"
+                />
+              </label>
+
+              <label className="block text-xs font-semibold text-slate-700">
+                Slug (opcional)
+                <input
+                  maxLength={255}
+                  placeholder="Gerado automaticamente"
+                  value={igrSlug}
+                  onChange={(e) => setIgrSlug(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-[#359830]"
+                />
+              </label>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Descrição institucional (opcional)
+                </label>
+                <ManagerRichTextEditor
+                  label="Descrição da IGR"
+                  value={igrDescription}
+                  onChange={setIgrDescription}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingIgr}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+              >
+                {savingIgr ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {editingIgr ? "Salvar alterações da IGR" : "Criar nova IGR"}
+              </button>
+            </form>
+
+            {editingIgr && (
+              <ManagerImageManager
+                targetType="igr"
+                targetId={editingIgr.id}
+                images={editingIgr.imagens || []}
+                title={`Imagens da IGR: ${editingIgr.name}`}
+                onChanged={(imgs) => {
+                  const updated = { ...editingIgr, imagens: imgs };
+                  setEditingIgr(updated);
+                  setIgrs((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+                }}
+              />
+            )}
+          </div>
 
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
@@ -584,14 +637,17 @@ export function AdminEntitiesSection({
                   type="text"
                   placeholder="Buscar IGR por nome ou slug..."
                   value={igrSearch}
-                  onChange={(e) => setIgrSearch(e.target.value)}
+                  onChange={(e) => {
+                    setIgrSearch(e.target.value);
+                    setIgrPage(1);
+                  }}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:bg-white focus:border-[#359830]"
                 />
               </div>
             </div>
 
             <div className="space-y-2.5">
-              {filteredIgrs.map((item) => (
+              {filteredIgrs.slice((igrPage - 1) * 20, igrPage * 20).map((item) => (
                 <article
                   key={item.id}
                   className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -600,7 +656,8 @@ export function AdminEntitiesSection({
                     <h4 className="font-bold text-slate-900">{item.name}</h4>
                     <p className="text-xs text-slate-500">
                       <span className="font-mono">{item.slug}</span> • {item.cidades_count}{" "}
-                      {item.cidades_count === 1 ? "cidade vinculada" : "cidades vinculadas"}
+                      {item.cidades_count === 1 ? "cidade vinculada" : "cidades vinculadas"} •{" "}
+                      {item.imagens?.length ?? 0} fotos
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -615,7 +672,7 @@ export function AdminEntitiesSection({
                       className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      Editar
+                      Editar / Fotos
                     </button>
                     <button
                       type="button"
@@ -629,6 +686,15 @@ export function AdminEntitiesSection({
                 </article>
               ))}
             </div>
+
+            <PaginationControls
+              currentPage={igrPage}
+              totalPages={Math.max(1, Math.ceil(filteredIgrs.length / 20))}
+              totalItems={filteredIgrs.length}
+              pageSize={20}
+              itemLabel="IGRs"
+              onPageChange={setIgrPage}
+            />
           </div>
         </div>
       )}

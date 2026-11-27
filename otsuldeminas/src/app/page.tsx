@@ -1,22 +1,37 @@
+import { Suspense } from "react";
 import { BarChart3, FileText, Map } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { HomeInteractive } from "@/components/HomeInteractive";
-import { fetchServerListSafe } from "@/lib/website-api";
+import { CarouselSectionSkeleton } from "@/components/LoadingSkeletons";
+import { fetchServerListSafe, fetchServerPageSafe } from "@/lib/website-api";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const [noticias, eventos, cidades] = await Promise.all([
-    fetchServerListSafe<ApiNoticia>("noticias/"),
-    fetchServerListSafe<ApiEventos>("eventos/"),
-    fetchServerListSafe<ApiCidade>("cidades/"),
+async function HomeCarouselsSection() {
+  const [noticiasDestaquePage, eventosPage, cidades] = await Promise.all([
+    fetchServerPageSafe<ApiNoticia>("noticias/", {
+      is_featured: true,
+      ordering: "-published_at",
+      page_size: 10,
+    }),
+    fetchServerPageSafe<ApiEventos>("eventos/", {
+      ordering: "-is_featured,-popularity,start_date",
+      page_size: 30,
+    }),
+    fetchServerListSafe<ApiCidade>("cidades/?page_size=200"),
   ]);
 
-  const noticiasDestaque = noticias
-    .filter((noticia) => noticia.is_featured)
-    .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+  return (
+    <HomeInteractive
+      noticiasDestaque={noticiasDestaquePage.results.slice(0, 10)}
+      eventos={eventosPage.results}
+      cidades={cidades}
+    />
+  );
+}
 
+export default function Home() {
   return (
     <div className="w-full">
       <Header
@@ -28,7 +43,16 @@ export default async function Home() {
         subtitle="Inteligência de dados, indicadores socioeconômicos, governança regional e monitoramento contínuo da atividade turística."
       />
 
-      <HomeInteractive noticiasDestaque={noticiasDestaque} eventos={eventos} cidades={cidades} />
+      <Suspense
+        fallback={
+          <>
+            <CarouselSectionSkeleton titleWidth="w-64" />
+            <CarouselSectionSkeleton titleWidth="w-56" />
+          </>
+        }
+      >
+        <HomeCarouselsSection />
+      </Suspense>
 
       {/* Sobre Section */}
       <section className="bg-white border-b border-slate-200/80 py-16">

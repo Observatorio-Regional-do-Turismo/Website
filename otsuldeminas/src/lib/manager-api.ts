@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
+import { normalizeMediaUrls } from "@/lib/website-api";
 export interface ManagerScope {
   type: "cidade" | "igr";
   id: number;
@@ -59,7 +60,8 @@ export interface AdminManagerUpdateInput {
   igr?: number | null;
 }
 
-export type ManagerTargetType = "cidade" | "igr" | "evento" | "ponto_turistico" | "noticia";
+export type ManagerTargetType =
+  "cidade" | "igr" | "evento" | "ponto_turistico" | "noticia" | "local" | "estado";
 
 export interface ManagerImagem {
   id: number;
@@ -125,6 +127,7 @@ export interface AdminIGRRecord {
   slug: string;
   description: string;
   cidades_count: number;
+  imagens?: ManagerImagem[];
 }
 
 export interface AdminIGRInput {
@@ -145,6 +148,7 @@ export interface AdminCidadeRecord {
   state_name: string;
   igrs: number[];
   igrs_info: ManagerLinkedIgr[];
+  imagens?: ManagerImagem[];
 }
 
 export interface AdminCidadeInput {
@@ -325,9 +329,96 @@ export interface ManagerLocalGeo {
   cidade_name?: string;
   latitude: string | number;
   longitude: string | number;
+  imagens?: ManagerImagem[];
 }
 
-export type ManagerLocalGeoInput = Omit<ManagerLocalGeo, "id" | "cidade_name">;
+export type ManagerLocalGeoInput = Omit<ManagerLocalGeo, "id" | "cidade_name" | "imagens">;
+
+export interface AdminSolicitacaoRecord {
+  id: number;
+  protocolo: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  cargo: string;
+  orgao: string;
+  tipo_vinculo: "cidade" | "igr" | "ambas";
+  tipo_vinculo_display: string;
+  cidade_nome: string;
+  igr_nome: string;
+  modulos: string[];
+  username_sugerido: string;
+  email_cadastro: string;
+  justificativa: string;
+  tem_documento: boolean;
+  documento_nome: string | null;
+  status: "pendente" | "aprovada" | "recusada";
+  status_display: string;
+  observacao_analise: string;
+  usuario_criado: number | null;
+  usuario_criado_username: string | null;
+  analisado_por: number | null;
+  analisado_por_username: string | null;
+  analisado_em: string | null;
+  email_enviado: boolean;
+  erro_envio_email: string;
+  created_at: string;
+}
+
+export interface AdminSolicitacaoSummary {
+  pendente: number;
+  aprovada: number;
+  recusada: number;
+  total: number;
+}
+
+export interface AdminSolicitacaoListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: AdminSolicitacaoRecord[];
+  summary: AdminSolicitacaoSummary;
+}
+
+export interface AdminSolicitacaoUpdateInput {
+  nome?: string;
+  email?: string;
+  telefone?: string;
+  cargo?: string;
+  orgao?: string;
+  tipo_vinculo?: "cidade" | "igr" | "ambas";
+  cidade_nome?: string;
+  igr_nome?: string;
+  username_sugerido?: string;
+  email_cadastro?: string;
+  justificativa?: string;
+  observacao_analise?: string;
+}
+
+export interface AdminSolicitacaoAprovarInput {
+  username: string;
+  password: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  cidade?: number | null;
+  igr?: number | null;
+  is_staff?: boolean;
+  observacao_analise?: string;
+}
+
+export interface AdminSolicitacaoAprovarResponse {
+  solicitacao: AdminSolicitacaoRecord;
+  gestor: AdminManagerRecord;
+  email_enviado: boolean;
+  email_erro: string;
+}
+
+export interface AdminSolicitacaoRecusarResponse {
+  solicitacao: AdminSolicitacaoRecord;
+  email_enviado: boolean;
+  email_erro: string;
+}
 
 interface ApiPage<T> {
   count: number;
@@ -362,7 +453,7 @@ async function managerRequest<T>(config: AxiosRequestConfig): Promise<T> {
       "X-CSRFToken": csrfToken,
     },
   });
-  return response.data;
+  return normalizeMediaUrls(response.data);
 }
 
 export async function loginManager(username: string, password: string): Promise<ManagerSession> {
@@ -386,7 +477,11 @@ export async function getManagerSession(): Promise<ManagerSession> {
 }
 
 export async function getManagerCollection<T>(path: string): Promise<T[]> {
-  let nextUrl: string | null = managerUrl(path);
+  const initial = new URL(managerUrl(path), window.location.origin);
+  if (!initial.searchParams.has("page_size")) {
+    initial.searchParams.set("page_size", "200");
+  }
+  let nextUrl: string | null = `${initial.pathname}${initial.search}`;
   const items: T[] = [];
 
   while (nextUrl) {
@@ -394,16 +489,17 @@ export async function getManagerCollection<T>(path: string): Promise<T[]> {
       withCredentials: true,
       timeout: 15000,
     });
-    if (Array.isArray(response.data)) {
-      items.push(...response.data);
+    const normalized = normalizeMediaUrls(response.data);
+    if (Array.isArray(normalized)) {
+      items.push(...normalized);
       break;
     }
-    if (!Array.isArray(response.data.results)) {
+    if (!Array.isArray(normalized.results)) {
       throw new Error("A API de gestão retornou uma resposta inválida.");
     }
-    items.push(...response.data.results);
-    if (response.data.next) {
-      const next = new URL(response.data.next, window.location.origin);
+    items.push(...normalized.results);
+    if (normalized.next) {
+      const next = new URL(normalized.next, window.location.origin);
       const backendPath = next.pathname.replace(/^\/backend(?=\/|$)/, "");
       nextUrl = `/api/manager${backendPath}${next.search}`;
     } else {
@@ -587,6 +683,86 @@ export const getAdminCidades = () => getManagerCollection<AdminCidadeRecord>("ad
 export const saveAdminCidade = (values: AdminCidadeInput, id?: number) =>
   saveManagerEntity<AdminCidadeRecord, AdminCidadeInput>("admin-cidades", values, id);
 export const deleteAdminCidade = (id: number) => deleteManagerEntity("admin-cidades", id);
+
+// Coordenação Master: Conteúdos & Imagens (Eventos, Notícias, Pontos Turísticos, Restaurantes/Locais)
+export const getAdminEventos = () => getManagerCollection<ManagerEvento>("admin-eventos/");
+export const saveAdminEvento = (values: ManagerEventoInput, id?: number) =>
+  saveManagerEntity<ManagerEvento, ManagerEventoInput>("admin-eventos", values, id);
+export const deleteAdminEvento = (id: number) => deleteManagerEntity("admin-eventos", id);
+
+export const getAdminNoticias = () => getManagerCollection<ManagerNews>("admin-noticias/");
+export const saveAdminNoticia = (values: ManagerNewsInput, id?: number) =>
+  saveManagerEntity<ManagerNews, ManagerNewsInput>("admin-noticias", values, id);
+export const deleteAdminNoticia = (id: number) => deleteManagerEntity("admin-noticias", id);
+
+export const getAdminPontos = () =>
+  getManagerCollection<ManagerPontoTuristico>("admin-pontos-turisticos/");
+export const saveAdminPonto = (values: ManagerPontoTuristicoInput, id?: number) =>
+  saveManagerEntity<ManagerPontoTuristico, ManagerPontoTuristicoInput>(
+    "admin-pontos-turisticos",
+    values,
+    id,
+  );
+export const deleteAdminPonto = (id: number) => deleteManagerEntity("admin-pontos-turisticos", id);
+
+export const getAdminLocais = () => getManagerCollection<ManagerLocalGeo>("admin-locais/");
+export const saveAdminLocal = (values: ManagerLocalGeoInput, id?: number) =>
+  saveManagerEntity<ManagerLocalGeo, ManagerLocalGeoInput>("admin-locais", values, id);
+export const deleteAdminLocal = (id: number) => deleteManagerEntity("admin-locais", id);
+
+// Coordenação Master: Solicitações de Credenciais
+export async function getAdminSolicitacoes(params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<AdminSolicitacaoListResponse> {
+  const qs = new URLSearchParams();
+  if (params?.status && params.status !== "todas") qs.set("status", params.status);
+  if (params?.search?.trim()) qs.set("search", params.search.trim());
+  qs.set("page", String(params?.page || 1));
+  qs.set("page_size", String(params?.page_size || 20));
+  const response = await axios.get<AdminSolicitacaoListResponse>(
+    managerUrl(`admin-solicitacoes/?${qs.toString()}`),
+    { withCredentials: true, timeout: 15000 },
+  );
+  return response.data;
+}
+
+export const updateAdminSolicitacao = (id: number, values: AdminSolicitacaoUpdateInput) =>
+  saveManagerEntity<AdminSolicitacaoRecord, AdminSolicitacaoUpdateInput>(
+    "admin-solicitacoes",
+    values,
+    id,
+  );
+
+export async function approveAdminSolicitacao(
+  id: number,
+  values: AdminSolicitacaoAprovarInput,
+): Promise<AdminSolicitacaoAprovarResponse> {
+  return managerRequest<AdminSolicitacaoAprovarResponse>({
+    method: "POST",
+    url: managerUrl(`admin-solicitacoes/${id}/aprovar/`),
+    data: values,
+  });
+}
+
+export async function denyAdminSolicitacao(
+  id: number,
+  values: { observacao_analise?: string; notificar_solicitante?: boolean },
+): Promise<AdminSolicitacaoRecusarResponse> {
+  return managerRequest<AdminSolicitacaoRecusarResponse>({
+    method: "POST",
+    url: managerUrl(`admin-solicitacoes/${id}/recusar/`),
+    data: values,
+  });
+}
+
+export const deleteAdminSolicitacao = (id: number) => deleteManagerEntity("admin-solicitacoes", id);
+
+export function getAdminSolicitacaoDocumentoUrl(id: number, download = false): string {
+  return managerUrl(`admin-solicitacoes/${id}/documento/${download ? "?download=1" : ""}`);
+}
 
 export async function getAdminTasks(): Promise<AdminTaskRecord[]> {
   const response = await axios.get<AdminTaskRecord[]>(managerUrl("admin-tasks/"), {

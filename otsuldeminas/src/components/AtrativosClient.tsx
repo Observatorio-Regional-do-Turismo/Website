@@ -2,22 +2,27 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Compass, Map as MapIcon, Search, Sparkles, UtensilsCrossed, X } from "lucide-react";
 import { AtrativoCard } from "@/components/AtrativoCard";
 import { AtrativoModal } from "@/components/AtrativoModal";
 import { EstabelecimentoCard } from "@/components/EstabelecimentoCard";
 import { FilterBar } from "@/components/FilterBar";
-import { normalizeText, stripHtml } from "@/lib/utils";
+import { StandardCardGridSkeleton } from "@/components/LoadingSkeletons";
+import { PaginationControls } from "@/components/PaginationControls";
+import { fetchPaginatedPage, PaginatedResult } from "@/lib/website-api";
+
+const PAGE_SIZE = 20;
+const MAX_FEATURED = 10;
 
 const InteractiveMap = dynamic(
   () => import("@/components/InteractiveMap").then((mod) => mod.InteractiveMap),
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-[460px] rounded-2xl bg-slate-100 animate-pulse flex items-center justify-center text-sm font-semibold text-slate-500">
-        Carregando mapa...
+      <div className="h-[460px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-sm font-medium text-slate-500">
+        Carregando mapa de atrativos...
       </div>
     ),
   },
@@ -27,19 +32,28 @@ type SortMode = "featured" | "popularity" | "name";
 type ScopeView = "all" | "atrativos" | "locais";
 
 interface AtrativosClientProps {
-  initialAtrativos: ApiPontoTuristico[];
-  initialLocais?: ApiEstabelecimentoGeo[];
+  initialAtrativosPage: PaginatedResult<ApiPontoTuristico>;
+  initialDestaques: ApiPontoTuristico[];
+  initialLocaisPage: PaginatedResult<ApiEstabelecimentoGeo>;
   initialCidades: ApiCidade[];
   initialIgrs: ApiIGR[];
 }
 
 export function AtrativosClient({
-  initialAtrativos,
-  initialLocais = [],
+  initialAtrativosPage,
+  initialDestaques,
+  initialLocaisPage,
   initialCidades,
   initialIgrs,
 }: AtrativosClientProps) {
   const searchParams = useSearchParams();
+  const [atrativosData, setAtrativosData] =
+    useState<PaginatedResult<ApiPontoTuristico>>(initialAtrativosPage);
+  const [locaisData, setLocaisData] =
+    useState<PaginatedResult<ApiEstabelecimentoGeo>>(initialLocaisPage);
+  const [loadingAtrativos, setLoadingAtrativos] = useState(false);
+  const [loadingLocais, setLoadingLocais] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [cidadeId, setCidadeId] = useState("");
   const [igrId, setIgrId] = useState("");
@@ -47,13 +61,94 @@ export function AtrativosClient({
   const [scopeView, setScopeView] = useState<ScopeView>("all");
   const [onlyFeatured, setOnlyFeatured] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("featured");
+  const [atrativosPage, setAtrativosPage] = useState(initialAtrativosPage.page || 1);
+  const [locaisPage, setLocaisPage] = useState(initialLocaisPage.page || 1);
   const [showMap, setShowMap] = useState(false);
   const [selectedAtrativo, setSelectedAtrativo] = useState<ApiPontoTuristico | null>(null);
+  const isFirstAtrativos = useRef(true);
+  const isFirstLocais = useRef(true);
+
+  const orderingValue = useMemo(() => {
+    if (sortMode === "name") return "name";
+    if (sortMode === "popularity") return "-popularity,name";
+    return "-is_featured,-popularity,name";
+  }, [sortMode]);
+
+  const loadAtrativos = useCallback(async () => {
+    if (scopeView === "locais") return;
+    setLoadingAtrativos(true);
+    try {
+      const res = await fetchPaginatedPage<ApiPontoTuristico>("pontos-turisticos/", {
+        page: atrativosPage,
+        page_size: PAGE_SIZE,
+        ordering: orderingValue,
+        search: searchTerm.trim() || undefined,
+        cidade: cidadeId || undefined,
+        igr: igrId || undefined,
+        category: category || undefined,
+        is_featured: onlyFeatured ? true : undefined,
+      });
+      setAtrativosData(res);
+    } catch {
+      // Mantém estado atual
+    } finally {
+      setLoadingAtrativos(false);
+    }
+  }, [
+    scopeView,
+    atrativosPage,
+    orderingValue,
+    searchTerm,
+    cidadeId,
+    igrId,
+    category,
+    onlyFeatured,
+  ]);
+
+  const loadLocais = useCallback(async () => {
+    if (scopeView === "atrativos" || onlyFeatured) return;
+    setLoadingLocais(true);
+    try {
+      const res = await fetchPaginatedPage<ApiEstabelecimentoGeo>("locais/", {
+        page: locaisPage,
+        page_size: PAGE_SIZE,
+        ordering: "nome",
+        search: searchTerm.trim() || undefined,
+        cidade: cidadeId || undefined,
+        igr: igrId || undefined,
+        categoria: category || undefined,
+      });
+      setLocaisData(res);
+    } catch {
+      // Mantém estado atual
+    } finally {
+      setLoadingLocais(false);
+    }
+  }, [scopeView, onlyFeatured, locaisPage, searchTerm, cidadeId, igrId, category]);
+
+  useEffect(() => {
+    if (isFirstAtrativos.current) {
+      isFirstAtrativos.current = false;
+      return;
+    }
+    const timer = window.setTimeout(loadAtrativos, 220);
+    return () => window.clearTimeout(timer);
+  }, [loadAtrativos]);
+
+  useEffect(() => {
+    if (isFirstLocais.current) {
+      isFirstLocais.current = false;
+      return;
+    }
+    const timer = window.setTimeout(loadLocais, 220);
+    return () => window.clearTimeout(timer);
+  }, [loadLocais]);
 
   useEffect(() => {
     const idParam = searchParams.get("id") || searchParams.get("atrativo");
-    if (!idParam || initialAtrativos.length === 0) return;
-    const match = initialAtrativos.find(
+    if (!idParam) return;
+    const pool = [...atrativosData.results, ...initialDestaques];
+    const match = pool.find(
       (item) =>
         String(item.id) === idParam ||
         (item.slug && item.slug.toLowerCase() === idParam.toLowerCase()),
@@ -61,7 +156,7 @@ export function AtrativosClient({
     if (match) {
       setSelectedAtrativo(match);
     }
-  }, [searchParams, initialAtrativos]);
+  }, [searchParams, atrativosData.results, initialDestaques]);
 
   const handleSelectAtrativo = (atrativo: ApiPontoTuristico) => {
     setSelectedAtrativo(atrativo);
@@ -76,88 +171,19 @@ export function AtrativosClient({
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    initialAtrativos.forEach((item) => {
+    [...initialAtrativosPage.results, ...initialDestaques].forEach((item) => {
       if (item.category?.trim()) set.add(item.category.trim());
     });
-    initialLocais.forEach((loc) => {
+    initialLocaisPage.results.forEach((loc) => {
       if (loc.categoria?.trim()) set.add(loc.categoria.trim());
     });
     return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [initialAtrativos, initialLocais]);
+  }, [initialAtrativosPage.results, initialDestaques, initialLocaisPage.results]);
 
-  const featuredAtrativos = useMemo(() => {
-    return [...initialAtrativos]
-      .filter((item) => item.is_featured)
-      .sort(
-        (a, b) =>
-          (b.popularity ?? 0) - (a.popularity ?? 0) || a.name.localeCompare(b.name, "pt-BR"),
-      );
-  }, [initialAtrativos]);
-
-  const filteredAtrativos = useMemo(() => {
-    if (scopeView === "locais") return [];
-    const query = normalizeText(searchTerm);
-    const items = initialAtrativos.filter((item) => {
-      if (cidadeId && String(item.cidade) !== cidadeId) return false;
-      if (
-        igrId &&
-        !(
-          (Array.isArray(item.igr_ids) && item.igr_ids.some((id) => String(id) === igrId)) ||
-          String(item.igr_id ?? "") === igrId
-        )
-      ) {
-        return false;
-      }
-      if (category && normalizeText(item.category) !== normalizeText(category)) return false;
-      if (onlyFeatured && !item.is_featured) return false;
-
-      if (!query) return true;
-      const haystack = normalizeText(
-        `${item.name} ${item.category || ""} ${item.cidade_name || ""} ${item.igr_name || ""} ${stripHtml(item.description)}`,
-      );
-      return haystack.includes(query);
-    });
-
-    items.sort((a, b) => {
-      if (sortMode === "name") {
-        return a.name.localeCompare(b.name, "pt-BR");
-      }
-      if (sortMode === "popularity") {
-        return (b.popularity ?? 0) - (a.popularity ?? 0) || a.name.localeCompare(b.name, "pt-BR");
-      }
-      const featDiff = (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
-      if (featDiff !== 0) return featDiff;
-      return (b.popularity ?? 0) - (a.popularity ?? 0) || a.name.localeCompare(b.name, "pt-BR");
-    });
-
-    return items;
-  }, [initialAtrativos, scopeView, searchTerm, cidadeId, igrId, category, onlyFeatured, sortMode]);
-
-  const filteredLocais = useMemo(() => {
-    if (scopeView === "atrativos" || onlyFeatured) return [];
-    const query = normalizeText(searchTerm);
-    return initialLocais
-      .filter((loc) => {
-        if (cidadeId && String(loc.cidade) !== cidadeId) return false;
-        if (
-          igrId &&
-          !(
-            (Array.isArray(loc.igr_ids) && loc.igr_ids.some((id) => String(id) === igrId)) ||
-            String(loc.igr_id ?? "") === igrId
-          )
-        ) {
-          return false;
-        }
-        if (category && normalizeText(loc.categoria) !== normalizeText(category)) return false;
-
-        if (!query) return true;
-        const haystack = normalizeText(
-          `${loc.nome} ${loc.categoria} ${loc.endereco || ""} ${loc.cidade_name || ""} ${loc.igr_name || ""}`,
-        );
-        return haystack.includes(query);
-      })
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  }, [initialLocais, scopeView, onlyFeatured, searchTerm, cidadeId, igrId, category]);
+  const featuredAtrativos = useMemo(
+    () => initialDestaques.slice(0, MAX_FEATURED),
+    [initialDestaques],
+  );
 
   const mapCities: ApiMapaCidade[] = useMemo(() => {
     return initialCidades
@@ -171,14 +197,19 @@ export function AtrativosClient({
         igr_name: c.igr_name,
         latitude: c.latitude !== null && c.latitude !== undefined ? Number(c.latitude) : null,
         longitude: c.longitude !== null && c.longitude !== undefined ? Number(c.longitude) : null,
-        pontos_count: initialAtrativos.filter((p) => String(p.cidade) === String(c.id)).length,
+        pontos_count: atrativosData.results.filter((p) => String(p.cidade) === String(c.id)).length,
         eventos_count: 0,
       }));
-  }, [initialCidades, initialAtrativos, cidadeId]);
+  }, [initialCidades, atrativosData.results, cidadeId]);
 
   const hasActiveFilters = Boolean(
     searchTerm || cidadeId || igrId || category || onlyFeatured || scopeView !== "all",
   );
+
+  const resetPages = () => {
+    setAtrativosPage(1);
+    setLocaisPage(1);
+  };
 
   return (
     <>
@@ -193,13 +224,19 @@ export function AtrativosClient({
               aria-label="Buscar atrativo, restaurante ou serviço"
               placeholder="Buscar atrativo, restaurante, hotel ou cidade..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                resetPages();
+              }}
               className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830] transition-all shadow-inner"
             />
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm("")}
+                onClick={() => {
+                  setSearchTerm("");
+                  resetPages();
+                }}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                 title="Limpar busca"
               >
@@ -211,7 +248,10 @@ export function AtrativosClient({
           <select
             aria-label="Filtrar por município"
             value={cidadeId}
-            onChange={(e) => setCidadeId(e.target.value)}
+            onChange={(e) => {
+              setCidadeId(e.target.value);
+              resetPages();
+            }}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
           >
             <option value="">Todos os municípios</option>
@@ -225,7 +265,10 @@ export function AtrativosClient({
           <select
             aria-label="Filtrar por IGR"
             value={igrId}
-            onChange={(e) => setIgrId(e.target.value)}
+            onChange={(e) => {
+              setIgrId(e.target.value);
+              resetPages();
+            }}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
           >
             <option value="">Todas as IGRs</option>
@@ -239,7 +282,10 @@ export function AtrativosClient({
           <select
             aria-label="Filtrar por categoria"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              resetPages();
+            }}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
           >
             <option value="">Todas as categorias</option>
@@ -253,7 +299,10 @@ export function AtrativosClient({
           <select
             aria-label="Ordenar atrativos"
             value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            onChange={(e) => {
+              setSortMode(e.target.value as SortMode);
+              setAtrativosPage(1);
+            }}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#359830]/30 focus:border-[#359830]"
           >
             <option value="featured">Destaques primeiro</option>
@@ -274,7 +323,10 @@ export function AtrativosClient({
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => setScopeView(opt.id)}
+                onClick={() => {
+                  setScopeView(opt.id);
+                  resetPages();
+                }}
                 className={`px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${
                   scopeView === opt.id
                     ? "bg-[#1D5C1B] text-white shadow-sm"
@@ -287,7 +339,10 @@ export function AtrativosClient({
 
             <button
               type="button"
-              onClick={() => setOnlyFeatured((prev) => !prev)}
+              onClick={() => {
+                setOnlyFeatured((prev) => !prev);
+                resetPages();
+              }}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${
                 onlyFeatured
                   ? "bg-amber-400 text-slate-950 shadow-sm"
@@ -321,6 +376,7 @@ export function AtrativosClient({
                   setCategory("");
                   setScopeView("all");
                   setOnlyFeatured(false);
+                  resetPages();
                 }}
                 className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold transition-colors cursor-pointer"
               >
@@ -330,13 +386,15 @@ export function AtrativosClient({
           </div>
 
           <span className="font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-            {filteredAtrativos.length} atrativos · {filteredLocais.length} restaurantes/serviços
+            {scopeView !== "locais" ? `${atrativosData.count} atrativos` : "0 atrativos"} ·{" "}
+            {scopeView !== "atrativos" && !onlyFeatured
+              ? `${locaisData.count} restaurantes/serviços`
+              : "0 restaurantes/serviços"}
           </span>
         </div>
       </FilterBar>
 
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 space-y-12">
-        {/* Mapa Interativo Opcional Integrado à Página de Atrativos */}
         {showMap && (
           <section className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -350,9 +408,9 @@ export function AtrativosClient({
             </div>
             <InteractiveMap
               cidades={mapCities}
-              pontos={filteredAtrativos}
+              pontos={scopeView === "locais" ? [] : atrativosData.results}
               eventos={[]}
-              estabelecimentos={filteredLocais}
+              estabelecimentos={scopeView === "atrativos" || onlyFeatured ? [] : locaisData.results}
               layers={{
                 cidades: true,
                 pontos: scopeView !== "locais",
@@ -364,7 +422,7 @@ export function AtrativosClient({
           </section>
         )}
 
-        {/* Seção de Principais Atrativos (Destaques) */}
+        {/* Principais Atrativos (Destaques — máximo 10) */}
         {featuredAtrativos.length > 0 && !hasActiveFilters && (
           <section aria-labelledby="principais-atrativos-heading" className="space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -385,8 +443,8 @@ export function AtrativosClient({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredAtrativos.slice(0, 6).map((atrativo) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {featuredAtrativos.map((atrativo) => (
                 <AtrativoCard
                   key={`featured-${atrativo.id}`}
                   atrativo={atrativo}
@@ -398,7 +456,7 @@ export function AtrativosClient({
           </section>
         )}
 
-        {/* Catálogo de Atrativos Turísticos */}
+        {/* Catálogo de Atrativos Turísticos (máximo 20 por página) */}
         {scopeView !== "locais" && (
           <section aria-labelledby="catalogo-atrativos-heading" className="space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -410,11 +468,13 @@ export function AtrativosClient({
                 {hasActiveFilters ? "Atrativos encontrados" : "Todos os Atrativos Turísticos"}
               </h2>
               <span className="text-xs font-semibold text-slate-500">
-                {filteredAtrativos.length} registros
+                {atrativosData.count} registros
               </span>
             </div>
 
-            {filteredAtrativos.length === 0 ? (
+            {loadingAtrativos ? (
+              <StandardCardGridSkeleton count={8} />
+            ) : atrativosData.results.length === 0 ? (
               <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center">
                 <Compass className="mx-auto mb-3 h-10 w-10 text-slate-400" />
                 <h3 className="text-lg font-bold text-slate-800 mb-1">
@@ -425,20 +485,37 @@ export function AtrativosClient({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAtrativos.map((atrativo) => (
-                  <AtrativoCard
-                    key={atrativo.id}
-                    atrativo={atrativo}
-                    onSelect={handleSelectAtrativo}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {atrativosData.results.map((atrativo) => (
+                    <AtrativoCard
+                      key={atrativo.id}
+                      atrativo={atrativo}
+                      onSelect={handleSelectAtrativo}
+                    />
+                  ))}
+                </div>
+
+                <PaginationControls
+                  currentPage={atrativosData.page}
+                  totalPages={atrativosData.totalPages}
+                  totalItems={atrativosData.count}
+                  pageSize={PAGE_SIZE}
+                  loading={loadingAtrativos}
+                  itemLabel="atrativos"
+                  onPageChange={(next) => {
+                    setAtrativosPage(next);
+                    if (typeof window !== "undefined") {
+                      window.scrollTo({ top: 320, behavior: "smooth" });
+                    }
+                  }}
+                />
+              </>
             )}
           </section>
         )}
 
-        {/* Restaurantes, Hospedagens & Serviços (mesma base exibida no Mapa) */}
+        {/* Restaurantes, Hospedagens & Serviços (máximo 20 por página) */}
         {scopeView !== "atrativos" && !onlyFeatured && (
           <section aria-labelledby="restaurantes-servicos-heading" className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
@@ -455,20 +532,34 @@ export function AtrativosClient({
                 </p>
               </div>
               <span className="text-xs font-semibold text-slate-500">
-                {filteredLocais.length} estabelecimentos
+                {locaisData.count} estabelecimentos
               </span>
             </div>
 
-            {filteredLocais.length === 0 ? (
+            {loadingLocais ? (
+              <StandardCardGridSkeleton count={8} />
+            ) : locaisData.results.length === 0 ? (
               <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
                 Nenhum restaurante ou serviço encontrado com os filtros selecionados.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredLocais.map((local) => (
-                  <EstabelecimentoCard key={local.id} local={local} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {locaisData.results.map((local) => (
+                    <EstabelecimentoCard key={local.id} local={local} />
+                  ))}
+                </div>
+
+                <PaginationControls
+                  currentPage={locaisData.page}
+                  totalPages={locaisData.totalPages}
+                  totalItems={locaisData.count}
+                  pageSize={PAGE_SIZE}
+                  loading={loadingLocais}
+                  itemLabel="estabelecimentos"
+                  onPageChange={(next) => setLocaisPage(next)}
+                />
+              </>
             )}
           </section>
         )}

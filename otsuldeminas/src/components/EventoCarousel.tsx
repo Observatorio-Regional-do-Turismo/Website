@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { EventoCard } from "@/components/EventoCard";
 
+const MAX_CAROUSEL_ITEMS = 10;
+
 export interface EventoWithDistance {
   evento: ApiEventos;
   distanceKm?: number | null;
@@ -16,18 +18,19 @@ interface EventoCarouselProps {
 }
 
 export function EventoCarousel({ items, onSelect, label }: EventoCarouselProps) {
+  const limitedItems = useMemo(() => items.slice(0, MAX_CAROUSEL_ITEMS), [items]);
   const [activePage, setActivePage] = useState(0);
-  const pageCount = Math.max(1, Math.ceil(items.length / 3));
+  const pageCount = Math.max(1, Math.ceil(limitedItems.length / 3));
   const currentItems = useMemo(
-    () => items.slice(activePage * 3, activePage * 3 + 3),
-    [items, activePage],
+    () => limitedItems.slice(activePage * 3, activePage * 3 + 3),
+    [limitedItems, activePage],
   );
 
   useEffect(() => {
     setActivePage(0);
-  }, [items]);
+  }, [limitedItems]);
 
-  if (items.length === 0) return null;
+  if (limitedItems.length === 0) return null;
 
   const showPrevious = () => {
     setActivePage((page) => (page - 1 + pageCount) % pageCount);
@@ -63,8 +66,8 @@ export function EventoCarousel({ items, onSelect, label }: EventoCarouselProps) 
           ))}
         </div>
         <p className="mt-4 text-center text-xs font-semibold text-slate-500">
-          {activePage * 3 + 1}–{Math.min(activePage * 3 + currentItems.length, items.length)} de{" "}
-          {items.length}
+          {activePage * 3 + 1}–{Math.min(activePage * 3 + currentItems.length, limitedItems.length)}{" "}
+          de {limitedItems.length}
         </p>
       </div>
       <button

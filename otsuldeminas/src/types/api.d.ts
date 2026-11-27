@@ -152,6 +152,7 @@ declare interface ApiEstabelecimentoGeo {
   igr_name?: string | null;
   latitude: number | string;
   longitude: number | string;
+  imagens?: ApiImages[];
 }
 
 declare interface ApiMapaCidade {

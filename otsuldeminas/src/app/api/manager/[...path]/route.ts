@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWebsiteApiBaseUrl } from "@/lib/website-api";
+import { getServerWebsiteApiBaseUrl } from "@/lib/website-api";
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
 const ALLOWED_PATH =
-  /^(auth\/(csrf|login|logout|session)|gestao\/(cidades(\/(igrs-disponiveis|\d+\/(vincular-igr|desvincular-igr))?)?|igrs(\/(cidades-disponiveis|\d+\/(vincular-cidade|desvincular-cidade))?)?|(noticias|eventos|pontos-turisticos|locais|imagens)(\/\d+)?|admin-gestores(\/\d+(\/alterar-senha)?)?|admin-cidades(\/\d+)?|admin-igrs(\/\d+)?|admin-estados|admin-tasks(\/(\d+(\/executar)?|logs))?))\/?$/;
+  /^(auth\/(csrf|login|logout|session)|gestao\/(cidades(\/(igrs-disponiveis|\d+\/(vincular-igr|desvincular-igr))?)?|igrs(\/(cidades-disponiveis|\d+\/(vincular-cidade|desvincular-cidade))?)?|(noticias|eventos|pontos-turisticos|locais|imagens)(\/\d+)?|admin-gestores(\/\d+(\/alterar-senha)?)?|admin-cidades(\/\d+)?|admin-igrs(\/\d+)?|admin-eventos(\/\d+)?|admin-noticias(\/\d+)?|admin-pontos-turisticos(\/\d+)?|admin-locais(\/\d+)?|admin-solicitacoes(\/\d+(\/(aprovar|recusar|documento))?)?|admin-estados|admin-tasks(\/(\d+(\/executar)?|logs))?))\/?$/;
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 
@@ -31,7 +31,7 @@ async function proxyManagerRequest(request: NextRequest, context: RouteContext) 
 
   const upstreamUrl = new URL(
     `${pathString}/${request.nextUrl.search}`,
-    `${getWebsiteApiBaseUrl()}/`,
+    `${getServerWebsiteApiBaseUrl()}/`,
   );
   const headers = new Headers();
   for (const name of ["cookie", "content-type", "origin", "referer", "x-csrftoken"]) {
@@ -48,7 +48,13 @@ async function proxyManagerRequest(request: NextRequest, context: RouteContext) 
   });
 
   const responseHeaders = new Headers();
-  for (const name of ["content-type", "cache-control", "vary"]) {
+  for (const name of [
+    "content-type",
+    "content-disposition",
+    "cache-control",
+    "vary",
+    "x-content-type-options",
+  ]) {
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }

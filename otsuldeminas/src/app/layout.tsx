@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
 import "../styles/globals.css";
 import Footer from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
+import { NavigationProgress } from "@/components/NavigationProgress";
 
 const gabarito = Gabarito({
   variable: "--font-gabarito",
@@ -25,6 +27,9 @@ export default function RootLayout({ children }: AppLayoutProps) {
       <body
         className={`${gabarito.variable} antialiased text-foreground min-h-screen flex flex-col`}
       >
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <Navbar />
         <main className="flex-1 flex flex-col w-full">{children}</main>
         <Footer />

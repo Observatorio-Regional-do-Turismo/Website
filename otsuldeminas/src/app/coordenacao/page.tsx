@@ -9,6 +9,8 @@ import {
   Building2,
   Check,
   Database,
+  Image as ImageIcon,
+  Inbox,
   KeyRound,
   Layers,
   LoaderCircle,
@@ -22,18 +24,23 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { AdminContentImagesSection } from "@/components/AdminContentImagesSection";
 import { AdminEntitiesSection } from "@/components/AdminEntitiesSection";
+import { AdminSolicitacoesSection } from "@/components/AdminSolicitacoesSection";
 import { AdminTasksSection } from "@/components/AdminTasksSection";
 import { Header } from "@/components/Header";
+import { PaginationControls } from "@/components/PaginationControls";
 import {
   AdminCidadeRecord,
   AdminIGRRecord,
   AdminManagerRecord,
+  AdminSolicitacaoSummary,
   createAdminManager,
   deleteAdminManager,
   getAdminCidades,
   getAdminIgrs,
   getAdminManagers,
+  getAdminSolicitacoes,
   getManagerSession,
   logoutManager,
   ManagerSession,
@@ -41,7 +48,7 @@ import {
   updateAdminManager,
 } from "@/lib/manager-api";
 
-type AdminTab = "gestores" | "entidades" | "tasks";
+type AdminTab = "solicitacoes" | "gestores" | "entidades" | "conteudos" | "tasks";
 type TypeFilter = "todos" | "cidade" | "igr";
 
 function extractValidationError(error: unknown): string {
@@ -64,12 +71,19 @@ export default function CoordenacaoPage() {
   const [managers, setManagers] = useState<AdminManagerRecord[]>([]);
   const [cities, setCities] = useState<AdminCidadeRecord[]>([]);
   const [igrs, setIgrs] = useState<AdminIGRRecord[]>([]);
+  const [solSummary, setSolSummary] = useState<AdminSolicitacaoSummary>({
+    pendente: 0,
+    aprovada: 0,
+    recusada: 0,
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("todos");
+  const [managersPage, setManagersPage] = useState(1);
 
   // Formulário de criação / edição de gestor
   const [editing, setEditing] = useState<AdminManagerRecord | null>(null);
@@ -114,16 +128,20 @@ export default function CoordenacaoPage() {
           router.replace("/coordenacao/acesso");
           return;
         }
-        const [managerList, cityList, igrList] = await Promise.all([
+        const [managerList, cityList, igrList, solList] = await Promise.all([
           getAdminManagers(),
           getAdminCidades().catch(() => []),
           getAdminIgrs().catch(() => []),
+          getAdminSolicitacoes({ status: "pendente", page: 1, page_size: 1 }).catch(() => null),
         ]);
         if (!active) return;
         setSession(current);
         setManagers(managerList);
         setCities(cityList.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
         setIgrs(igrList.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+        if (solList?.summary) {
+          setSolSummary(solList.summary);
+        }
         setLoading(false);
       } catch (requestError) {
         if (!active) return;
@@ -348,6 +366,13 @@ export default function CoordenacaoPage() {
             <div className="mb-8 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
               {(
                 [
+                  {
+                    id: "solicitacoes",
+                    label: "Solicitações",
+                    count: solSummary.pendente,
+                    highlight: solSummary.pendente > 0,
+                    icon: Inbox,
+                  },
                   { id: "gestores", label: "Gestores", count: managers.length, icon: Users },
                   {
                     id: "entidades",
@@ -355,11 +380,17 @@ export default function CoordenacaoPage() {
                     count: cities.length + igrs.length,
                     icon: MapPinned,
                   },
+                  {
+                    id: "conteudos",
+                    label: "Conteúdos & Imagens",
+                    icon: ImageIcon,
+                  },
                   { id: "tasks", label: "Coletas de Dados", icon: Database },
                 ] as const
               ).map((tab) => {
                 const active = activeTab === tab.id;
                 const Icon = tab.icon;
+                const hasHighlight = "highlight" in tab && tab.highlight;
                 return (
                   <button
                     key={tab.id}
@@ -380,7 +411,11 @@ export default function CoordenacaoPage() {
                     {"count" in tab && (
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${
-                          active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                          active
+                            ? "bg-white/20 text-white"
+                            : hasHighlight
+                              ? "bg-[#C90C0F] text-white"
+                              : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {tab.count}
@@ -391,9 +426,29 @@ export default function CoordenacaoPage() {
               })}
             </div>
 
+            {activeTab === "solicitacoes" && (
+              <AdminSolicitacoesSection
+                cities={cities}
+                igrs={igrs}
+                onApproved={reloadManagers}
+                onSummaryChange={setSolSummary}
+                onNotice={setNotice}
+                onError={setError}
+              />
+            )}
+
             {activeTab === "entidades" && (
               <AdminEntitiesSection
                 onCatalogChanged={reloadCatalog}
+                onNotice={setNotice}
+                onError={setError}
+              />
+            )}
+
+            {activeTab === "conteudos" && (
+              <AdminContentImagesSection
+                cities={cities}
+                igrs={igrs}
                 onNotice={setNotice}
                 onError={setError}
               />
@@ -578,7 +633,10 @@ export default function CoordenacaoPage() {
                         type="text"
                         placeholder="Buscar por usuário, nome, e-mail, cidade ou IGR..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setManagersPage(1);
+                        }}
                         className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:bg-white focus:border-[#359830]"
                       />
                     </div>
@@ -590,86 +648,96 @@ export default function CoordenacaoPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {filteredManagers.map((item) => (
-                        <article
-                          key={item.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                        >
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-bold text-slate-900">{item.username}</h3>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                  item.is_active
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : "bg-red-50 text-red-700"
-                                }`}
+                      {filteredManagers
+                        .slice((managersPage - 1) * 20, managersPage * 20)
+                        .map((item) => (
+                          <article
+                            key={item.id}
+                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="font-bold text-slate-900">{item.username}</h3>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                    item.is_active
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-red-50 text-red-700"
+                                  }`}
+                                >
+                                  {item.is_active ? "Ativo" : "Inativo"}
+                                </span>
+                                {item.is_staff && (
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                                    Admin
+                                  </span>
+                                )}
+                              </div>
+
+                              {(item.first_name || item.last_name || item.email) && (
+                                <p className="text-xs text-slate-600">
+                                  {[item.first_name, item.last_name].filter(Boolean).join(" ")}
+                                  {item.email ? ` • ${item.email}` : ""}
+                                </p>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                                {item.cidade_name && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#1D5C1B] font-semibold">
+                                    <Building2 className="h-3 w-3" />
+                                    Cidade: {item.cidade_name}
+                                  </span>
+                                )}
+                                {item.igr_name && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold">
+                                    <Layers className="h-3 w-3" />
+                                    IGR: {item.igr_name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => startEdit(item)}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                               >
-                                {item.is_active ? "Ativo" : "Inativo"}
-                              </span>
-                              {item.is_staff && (
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                                  Admin
-                                </span>
-                              )}
+                                <Pencil className="h-3.5 w-3.5" />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPasswordTarget(item);
+                                  setNewPassword("");
+                                  setConfirmPassword("");
+                                  setPasswordError("");
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                              >
+                                <KeyRound className="h-3.5 w-3.5" />
+                                Trocar senha
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(item)}
+                                className="p-2 rounded-xl text-red-600 hover:bg-red-50 cursor-pointer"
+                                title="Excluir gestor"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </div>
-
-                            {(item.first_name || item.last_name || item.email) && (
-                              <p className="text-xs text-slate-600">
-                                {[item.first_name, item.last_name].filter(Boolean).join(" ")}
-                                {item.email ? ` • ${item.email}` : ""}
-                              </p>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                              {item.cidade_name && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#1D5C1B] font-semibold">
-                                  <Building2 className="h-3 w-3" />
-                                  Cidade: {item.cidade_name}
-                                </span>
-                              )}
-                              {item.igr_name && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold">
-                                  <Layers className="h-3 w-3" />
-                                  IGR: {item.igr_name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => startEdit(item)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPasswordTarget(item);
-                                setNewPassword("");
-                                setConfirmPassword("");
-                                setPasswordError("");
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
-                            >
-                              <KeyRound className="h-3.5 w-3.5" />
-                              Trocar senha
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(item)}
-                              className="p-2 rounded-xl text-red-600 hover:bg-red-50 cursor-pointer"
-                              title="Excluir gestor"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </article>
-                      ))}
+                          </article>
+                        ))}
+                      <PaginationControls
+                        currentPage={managersPage}
+                        totalPages={Math.max(1, Math.ceil(filteredManagers.length / 20))}
+                        totalItems={filteredManagers.length}
+                        pageSize={20}
+                        itemLabel="gestores"
+                        onPageChange={setManagersPage}
+                      />
                     </div>
                   )}
                 </div>

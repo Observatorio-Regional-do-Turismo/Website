@@ -1,18 +1,30 @@
 import { Suspense } from "react";
 import { CidadesClient } from "@/components/CidadesClient";
 import { Header } from "@/components/Header";
-import { fetchServerListSafe } from "@/lib/website-api";
+import { FilterBarSkeleton, StandardCardGridSkeleton } from "@/components/LoadingSkeletons";
+import { fetchServerListSafe, fetchServerPageSafe } from "@/lib/website-api";
 
 export const dynamic = "force-dynamic";
 
-export default async function CidadesPage() {
-  const [cidades, estados, igrs, noticias] = await Promise.all([
-    fetchServerListSafe<ApiCidade>("cidades/"),
-    fetchServerListSafe<ApiEstado>("estados/"),
-    fetchServerListSafe<ApiIGR>("igrs/"),
-    fetchServerListSafe<ApiNoticia>("noticias/"),
+async function CidadesContent() {
+  const [cidadesPage, estados, igrs, noticias] = await Promise.all([
+    fetchServerPageSafe<ApiCidade>("cidades/", { page: 1, page_size: 20, ordering: "name" }),
+    fetchServerListSafe<ApiEstado>("estados/?page_size=100"),
+    fetchServerListSafe<ApiIGR>("igrs/?page_size=200"),
+    fetchServerListSafe<ApiNoticia>("noticias/?page_size=200"),
   ]);
 
+  return (
+    <CidadesClient
+      initialPage={cidadesPage}
+      initialEstados={estados}
+      initialIgrs={igrs}
+      initialNoticias={noticias}
+    />
+  );
+}
+
+export default function CidadesPage() {
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col pb-20">
       <Header
@@ -20,13 +32,17 @@ export default async function CidadesPage() {
         title="Municípios & Indicadores"
         subtitle="Consulte dados socioeconômicos, demográficos, infraestrutura turística, notícias e eventos por município."
       />
-      <Suspense fallback={<div className="min-h-[40vh] bg-slate-50" />}>
-        <CidadesClient
-          initialCidades={cidades}
-          initialEstados={estados}
-          initialIgrs={igrs}
-          initialNoticias={noticias}
-        />
+      <Suspense
+        fallback={
+          <>
+            <FilterBarSkeleton columns={5} />
+            <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1">
+              <StandardCardGridSkeleton count={8} />
+            </section>
+          </>
+        }
+      >
+        <CidadesContent />
       </Suspense>
     </main>
   );

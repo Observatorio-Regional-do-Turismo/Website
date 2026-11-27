@@ -761,8 +761,12 @@ export function ManagerLocaisSection({
         ? locais.map((loc) => (loc.id === saved.id ? saved : loc))
         : [saved, ...locais];
       onChange(next);
-      resetForm();
-      setStatus(editing ? "Estabelecimento atualizado." : "Estabelecimento cadastrado no mapa.");
+      setEditing(saved);
+      setStatus(
+        editing
+          ? "Estabelecimento atualizado."
+          : "Estabelecimento cadastrado no mapa. Você já pode anexar imagens abaixo.",
+      );
     } catch {
       onError("Não foi possível salvar o estabelecimento. Verifique CNPJ e coordenadas.");
     } finally {
@@ -784,144 +788,160 @@ export function ManagerLocaisSection({
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="font-bold text-slate-900">
-            {editing
-              ? `Editar local: ${editing.nome}`
-              : "Cadastrar restaurante, hotel ou serviço turístico"}
-          </h3>
-          {editing && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-            >
-              Cancelar edição
-            </button>
-          )}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-semibold text-slate-700">
-            Nome do estabelecimento
-            <input
-              required
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700">
-            Categoria
-            <select
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
-            >
-              {LOCAL_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700">
-            Município
-            <select
-              required
-              value={cidadeId}
-              onChange={(e) => setCidadeId(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
-            >
-              {cities.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700">
-            Telefone
-            <input
-              type="text"
-              placeholder="(35) 3722-0000"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
-            Endereço completo
-            <input
-              type="text"
-              placeholder="Rua, número, bairro"
-              value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700">
-            Latitude
-            <input
-              required
-              type="text"
-              placeholder="-21.787800"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700">
-            Longitude
-            <input
-              required
-              type="text"
-              placeholder="-46.561300"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
-            CNPJ (14 dígitos, opcional)
-            <input
-              type="text"
-              maxLength={14}
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
-            />
-          </label>
-        </div>
-
-        {status && <p className="text-sm font-semibold text-emerald-800">{status}</p>}
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-3 font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+      <div className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
         >
-          {saving ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : editing ? (
-            <Save className="h-4 w-4" />
-          ) : (
-            <CirclePlus className="h-4 w-4" />
-          )}
-          {editing ? "Salvar estabelecimento" : "Cadastrar local"}
-        </button>
-      </form>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold text-slate-900">
+              {editing
+                ? `Editar local: ${editing.nome}`
+                : "Cadastrar restaurante, hotel ou serviço turístico"}
+            </h3>
+            {editing && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                Cancelar edição
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-semibold text-slate-700">
+              Nome do estabelecimento
+              <input
+                required
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700">
+              Categoria
+              <select
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
+              >
+                {LOCAL_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700">
+              Município
+              <select
+                required
+                value={cidadeId}
+                onChange={(e) => setCidadeId(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
+              >
+                {cities.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700">
+              Telefone
+              <input
+                type="text"
+                placeholder="(35) 3722-0000"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
+              Endereço completo
+              <input
+                type="text"
+                placeholder="Rua, número, bairro"
+                value={endereco}
+                onChange={(e) => setEndereco(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700">
+              Latitude
+              <input
+                required
+                type="text"
+                placeholder="-21.787800"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700">
+              Longitude
+              <input
+                required
+                type="text"
+                placeholder="-46.561300"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
+              CNPJ (14 dígitos, opcional)
+              <input
+                type="text"
+                maxLength={14}
+                value={cnpj}
+                onChange={(e) => setCnpj(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#359830]"
+              />
+            </label>
+          </div>
+
+          {status && <p className="text-sm font-semibold text-emerald-800">{status}</p>}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D5C1B] px-4 py-3 font-bold text-white transition hover:bg-[#287524] disabled:opacity-60 cursor-pointer"
+          >
+            {saving ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : editing ? (
+              <Save className="h-4 w-4" />
+            ) : (
+              <CirclePlus className="h-4 w-4" />
+            )}
+            {editing ? "Salvar estabelecimento" : "Cadastrar local"}
+          </button>
+        </form>
+
+        {editing && (
+          <ManagerImageManager
+            targetType="local"
+            targetId={editing.id}
+            images={editing.imagens || []}
+            title={`Fotos de ${editing.nome}`}
+            onChanged={(imgs) => {
+              const updated = { ...editing, imagens: imgs };
+              setEditing(updated);
+              onChange(locais.map((loc) => (loc.id === updated.id ? updated : loc)));
+            }}
+          />
+        )}
+      </div>
 
       <section className="space-y-3">
         <h3 className="font-bold text-slate-900">Locais cadastrados ({locais.length})</h3>
@@ -944,6 +964,7 @@ export function ManagerLocaisSection({
                       {loc.categoria}
                     </span>
                     {loc.cidade_name && <span>• {loc.cidade_name}</span>}
+                    <span>• {loc.imagens?.length ?? 0} fotos</span>
                   </p>
                   {loc.endereco && <p className="mt-1 text-xs text-slate-600">{loc.endereco}</p>}
                 </div>
